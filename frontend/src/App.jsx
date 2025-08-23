@@ -5,6 +5,7 @@ export default function App() {
   return (
     
     <BrowserRouter>
+       <div className="font-bold text-2xl">hello</div>
        <div className="min-h-screen flex flex-col">
          <NavBar />
          <main className="flex-grow">
