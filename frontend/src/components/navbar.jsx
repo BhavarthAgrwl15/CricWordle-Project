@@ -7,6 +7,8 @@ export default function NavBar() {
         <li className="hover:text-gray-200 cursor-pointer">Categories</li>
         <li className="hover:text-gray-200 cursor-pointer">Leaderboard</li>
         <li className="hover:text-gray-200 cursor-pointer">Profile</li>
+        <li className="hover:text-gray-200 cursor-pointer">Login</li>
+        <li className="hover:text-gray-200 cursor-pointer">Sign Up</li>
       </ul>
     </nav>
   );
