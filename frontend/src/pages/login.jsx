@@ -1,30 +1,30 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { loginUser } from "../services/user"; // expects loginUser({ emailOrUsername, password })
 
-// Basic Login Page for Cricket Wordle (React + Tailwind)
-// Backend is expected to expose POST /api/auth/login
-// - Recommended: issue an httpOnly cookie (so we don't store tokens here)
-// - Otherwise, return { token, user } and you can store token in memory/localStorage
-// Configure API base via VITE_API_BASE or default localhost:5000
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-
-function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+// Helper validators
+const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const isUsername = (v) => /^[a-zA-Z0-9._-]{3,20}$/.test(v);
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function validateIdentifier(v) {
+    // allow either email OR username
+    return isEmail(v) || isUsername(v);
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!validateEmail(email)) {
-      setError("Please enter a valid email address.");
+
+    if (!validateIdentifier(emailOrUsername)) {
+      setError("Enter a valid email or username (3–20 chars, letters/numbers . _ -)");
       return;
     }
     if (!password) {
@@ -34,90 +34,103 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // send/receive cookies if server uses httpOnly cookie auth
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.msg || data?.error || "Login failed");
-      }
-
-      // If your server returns a token instead of cookie, you can store it here (optional):
-      // if (data.token) localStorage.setItem("token", data.token);
-
+      const data = await loginUser({ emailOrUsername, password });
+      if (data?.token) localStorage.setItem("token", data.token); // optional if you use JWT non-cookie
       navigate("/play");
     } catch (err) {
-      setError(err.message || "Something went wrong");
+      const msg = err?.response?.data?.msg || err?.message || "Login failed";
+      setError(msg);
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-emerald-950 via-neutral-950 to-black text-neutral-100 flex items-center justify-center p-4">
+   return (
+    <div className="min-h-screen w-full text-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        {/* Header */}
         <div className="mb-6 text-center">
           <div className="text-4xl">🏏</div>
-          <h1 className="mt-2 text-2xl font-bold">Cricket Wordle</h1>
-          <p className="text-sm text-neutral-400 mt-1">Login to play the daily puzzle</p>
+          <h1 className="mt-2 text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-gray-200 to-white bg-clip-text text-transparent drop-shadow">
+            Cricket Wordle
+          </h1>
+          <p className="text-sm text-gray-400 mt-1">Login to play the daily puzzle</p>
         </div>
 
-        <form onSubmit={onSubmit} className="rounded-2xl border border-neutral-800 bg-neutral-900/50 backdrop-blur p-5 shadow-xl">
+        {/* Frosted, translucent card with visible borders */}
+        <form
+          onSubmit={onSubmit}
+          className="rounded-2xl border border-gray-700/70 bg-white/10 backdrop-blur-xl p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]"
+        >
           {error && (
-            <div className="mb-4 rounded-lg border border-red-700 bg-red-900/20 px-3 py-2 text-sm text-red-300">
+            <div className="mb-4 rounded-lg border border-red-600/80 bg-red-900/20 px-3 py-2 text-sm text-red-300">
               {error}
             </div>
           )}
 
-          <label className="block text-sm mb-1">Email</label>
+          <label className="block text-sm mb-1 text-gray-300">Email or Username</label>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="w-full mb-4 px-3 py-2 rounded-xl bg-neutral-900/70 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            type="text"
+            value={emailOrUsername}
+            onChange={(e) => setEmailOrUsername(e.target.value.trim())}
+            placeholder="you@example.com or sachinfan"
+            autoComplete="username"
+            className="w-full mb-4 px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
           />
 
-          <label className="block text-sm mb-1">Password</label>
+          <label className="block text-sm mb-1 text-gray-300">Password</label>
           <div className="relative mb-4">
             <input
               type={showPwd ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-3 py-2 rounded-xl bg-neutral-900/70 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-600 pr-10"
+              placeholder="••••••"
+              autoComplete="current-password"
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 pr-12 placeholder-gray-400"
             />
             <button
               type="button"
               onClick={() => setShowPwd((s) => !s)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-200"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-200"
             >
               {showPwd ? "HIDE" : "SHOW"}
             </button>
           </div>
 
+          {/* Primary button: dark neutral gradient */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 font-semibold"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 disabled:opacity-60 font-semibold shadow-lg shadow-black/40 transition-transform duration-200 hover:scale-[1.01]"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
 
-          <div className="flex items-center justify-between mt-4 text-sm text-neutral-400">
-            <a className="hover:text-neutral-200" href="#" onClick={(e)=>e.preventDefault()}>Forgot password?</a>
-            <a className="hover:text-neutral-200" href="/register">Create account</a>
+          <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
+            <a
+              className="hover:text-gray-200"
+              href="#"
+              onClick={(e) => e.preventDefault()}
+            >
+              Forgot password?
+            </a>
+            <Link className="hover:text-gray-200" to="/register">
+              Create account
+            </Link>
           </div>
         </form>
 
-        <div className="mt-6 text-center text-xs text-neutral-500">
+        <div className="mt-6 text-center text-[11px] text-gray-400">
           By continuing you agree to our Terms & Privacy Policy.
         </div>
       </div>
     </div>
   );
 }
+
+/* --- Test cases (manual) ---
+1) Login with email: "user@example.com" + correct password -> should navigate to /play
+2) Login with username: "sachinfan" + correct password -> should navigate to /play
+3) Invalid identifier: "ab" -> shows validation error (needs email OR username pattern)
+4) Missing password -> shows validation error
+*/

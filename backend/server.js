@@ -7,6 +7,16 @@ const User = require("./models/user");
 const DailyWord = require("./models/daily-word");
 const GameSession = require("./models/game-session");
 const authRoutes = require("./routes/user-routes");
+const cors = require("cors"); //study
+
+app.use(
+	cors({
+		origin: "http://localhost:5173",
+		credentials:true,
+	})
+)
+
+
 
 
 app.use(express.json());
@@ -16,7 +26,9 @@ app.use("/api/auth", authRoutes);
 
 
 //wordRoutes
-app.use("/api/categories", categoryRoutes);
+// app.use("/api/categories", categoryRoutes);
+
+
 
 
 mongoose.connect(process.env.DBURL).then(()=>{
@@ -31,10 +43,3 @@ mongoose.connect(process.env.DBURL).then(()=>{
 app.get("/", (req,res)=>{
     res.send("api running");
 })
-
-
-
-
-
-
-
