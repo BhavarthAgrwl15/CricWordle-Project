@@ -1,43 +1,42 @@
-import express from "express";
-import DailyWord from "../models/daily-word.js";
-import PuzzleSession from "../models/game-session.js";
+const express = require("express");
+const DailyWord = require("../models/daily-word");
+const PuzzleSession = require("../models/game-session");
 
 const router = express.Router();
 
-// GET /api/categories
+// ✅ Get all categories
 router.get("/", async (req, res) => {
   try {
     const categories = await DailyWord.distinct("category");
     res.json(categories);
   } catch (err) {
-    res.status(500).json({ message: "Server Error", error: err.message });
+    console.error(err);
+    res.status(500).json({ msg: "Server Error" });
   }
 });
 
+// ✅ Initialize puzzle session
 router.post("/init", async (req, res) => {
   try {
     const { category, level } = req.body;
 
-    // 1. Validate input
     if (!category || !level) {
-      return res.status(400).json({ error: "category and level are required" });
+      return res.status(400).json({ msg: "category and level are required" });
     }
 
-    // 2. Find today's word
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const dailyWord = await DailyWord.findOne({ date: today, category, level });
 
     if (!dailyWord) {
-      return res.status(404).json({ error: "No word found for this category & level today" });
+      return res.status(404).json({ msg: "No word found for this category & level today" });
     }
 
-    // 3. Create puzzle session
     const maxAttempts = 6;
     const expiresAt = new Date();
-    expiresAt.setHours(23, 59, 59, 999); // expire at end of day
+    expiresAt.setHours(23, 59, 59, 999);
 
     const session = new PuzzleSession({
-      userId: req.user?._id, // if you have auth middleware
+      userId: req.user?._id, // attach req.user via auth middleware
       wordId: dailyWord._id,
       category,
       level,
@@ -48,7 +47,6 @@ router.post("/init", async (req, res) => {
 
     await session.save();
 
-    // 4. Send response
     res.json({
       puzzleId: session._id,
       maxAttempts,
@@ -58,36 +56,35 @@ router.post("/init", async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ msg: "Server Error" });
   }
 });
 
-
+// ✅ Guess route
 router.post("/guess", async (req, res) => {
   try {
     const { puzzleId, guess } = req.body;
 
     if (!puzzleId || !guess) {
-      return res.status(400).json({ message: "puzzleId and guess are required" });
+      return res.status(400).json({ msg: "puzzleId and guess are required" });
     }
 
     const puzzle = await DailyWord.findById(puzzleId);
     if (!puzzle) {
-      return res.status(404).json({ message: "Puzzle not found" });
+      return res.status(404).json({ msg: "Puzzle not found" });
     }
 
     const solution = puzzle.word.toLowerCase();
     const attempt = guess.toLowerCase();
 
     if (attempt.length !== solution.length) {
-      return res.status(400).json({ message: "Guess length mismatch" });
+      return res.status(400).json({ msg: "Guess length mismatch" });
     }
 
-    // feedback generation
     const feedback = Array(solution.length).fill("absent");
     const used = Array(solution.length).fill(false);
 
-    // First pass: mark correct
+    // Mark correct
     for (let i = 0; i < solution.length; i++) {
       if (attempt[i] === solution[i]) {
         feedback[i] = "correct";
@@ -95,7 +92,7 @@ router.post("/guess", async (req, res) => {
       }
     }
 
-    // Second pass: mark present
+    // Mark present
     for (let i = 0; i < solution.length; i++) {
       if (feedback[i] === "correct") continue;
       for (let j = 0; j < solution.length; j++) {
@@ -107,38 +104,37 @@ router.post("/guess", async (req, res) => {
       }
     }
 
-    // update attemptsLeft
     let attemptsLeft = puzzle.attemptsLeft ?? 6;
     attemptsLeft = Math.max(attemptsLeft - 1, 0);
 
     const solved = feedback.every(f => f === "correct");
 
-    // Optionally persist attemptsLeft if you want in DB
     puzzle.attemptsLeft = attemptsLeft;
     await puzzle.save();
 
     res.json({ feedback, solved, attemptsLeft });
   } catch (err) {
-    res.status(500).json({ message: "Server Error", error: err.message });
+    console.error(err);
+    res.status(500).json({ msg: "Server Error" });
   }
 });
 
+// ✅ Finish puzzle
 router.post("/finish", async (req, res) => {
   try {
     const { puzzleId, result } = req.body;
 
     const session = await PuzzleSession.findById(puzzleId);
     if (!session) {
-      return res.status(404).json({ error: "Puzzle session not found" });
+      return res.status(404).json({ msg: "Puzzle session not found" });
     }
     if (session.finishedAt) {
-      return res.status(400).json({ error: "Puzzle already finished" });
+      return res.status(400).json({ msg: "Puzzle already finished" });
     }
 
-    // Compute score
     let score = 0;
     if (result === "won") {
-      score = (6-session.attemptsLeft) * 10; // Example scoring rule(check again!!)
+      score = (6 - session.attemptsLeft) * 10; // scoring logic
     }
 
     session.finishedAt = new Date();
@@ -147,8 +143,9 @@ router.post("/finish", async (req, res) => {
 
     res.json({ success: true, score });
   } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
+    console.error(err);
+    res.status(500).json({ msg: "Internal server error" });
   }
 });
 
-export default router;
+module.exports = router;
