@@ -5,3 +5,9 @@ export const AUTH_API = {
   REGISTER: `${API_BASE}/auth/register`,
   LOGOUT: `${API_BASE}/auth/logout` // optional if you add logout backend route
 };
+
+export const GAME_API = {
+  CATEGORY: `${API_BASE}/categories`,
+  INIT: `${API_BASE}/categories/init`,
+  LOGOUT: `${API_BASE}/auth/logout` // optional if you add logout backend route
+};

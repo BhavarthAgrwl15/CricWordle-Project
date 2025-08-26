@@ -1,6 +1,6 @@
 const express = require("express");
 const DailyWord = require("../models/daily-word");
-const PuzzleSession = require("../models/game-session");
+const GameSession = require("../models/game-session");
 
 const router = express.Router();
 
@@ -18,45 +18,53 @@ router.get("/", async (req, res) => {
 // ✅ Initialize puzzle session
 router.post("/init", async (req, res) => {
   try {
-    const { category, level } = req.body;
+    const { category, level, date } = req.body;
 
     if (!category || !level) {
       return res.status(400).json({ msg: "category and level are required" });
     }
 
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const dailyWord = await DailyWord.findOne({ date: today, category, level });
+    // Use provided date (useful for testing) otherwise use today
+    const day = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
 
+    // find the DailyWord for that day/category/level
+    const dailyWord = await DailyWord.findOne({ date: day, category, level });
     if (!dailyWord) {
-      return res.status(404).json({ msg: "No word found for this category & level today" });
+      return res.status(404).json({ msg: "No word found for this category & level on the requested date" });
     }
 
     const maxAttempts = 6;
     const expiresAt = new Date();
     expiresAt.setHours(23, 59, 59, 999);
 
-    const session = new PuzzleSession({
-      userId: req.user?._id, // attach req.user via auth middleware
-      wordId: dailyWord._id,
+    // Build the session object - userId optional (if you use auth, attach req.user._id)
+    const sessionData = {
+      userId: req.user ? req.user._id : undefined, // keep undefined if none
+      date: day,
       category,
-      level,
+      level: String(level),
+      wordId: dailyWord._id,
       maxAttempts,
-      attempts: [],
+      attempts: [],        // start with empty guesses array
       expiresAt
-    });
+    };
 
+    const session = new GameSession(sessionData);
     await session.save();
+
+    // Calculate word length robustly (accept 'answer' or 'word' field in DailyWord)
+    const wordText = (dailyWord.answer || dailyWord.word || "").toString();
+    const wordLength = wordText.length;
 
     res.json({
       puzzleId: session._id,
       maxAttempts,
-      wordLength: dailyWord.word.length,
+      wordLength,
       expiresAt
     });
-
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Server Error" });
+    console.error("puzzle.init err:", err);
+    res.status(500).json({ msg: "Server Error", error: err.message });
   }
 });
 
