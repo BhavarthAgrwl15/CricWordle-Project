@@ -9,5 +9,11 @@ export const AUTH_API = {
 export const GAME_API = {
   CATEGORY: `${API_BASE}/categories`,
   INIT: `${API_BASE}/categories/init`,
+  GUESS:`${API_BASE}/categories/guess`,
+  FINISH:`${API_BASE}/categories/finish`,
   LOGOUT: `${API_BASE}/auth/logout` // optional if you add logout backend route
 };
+
+export const PROFILE_API={
+   ME: `${API_BASE}/profile/me`
+}

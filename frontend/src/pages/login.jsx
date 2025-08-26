@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+// src/pages/LoginPage.jsx
+import React, { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { loginUser } from "../services/user"; // expects loginUser({ emailOrUsername, password })
+import { AuthContext } from "../contexts/auth-context";
+import { GameContext } from "../contexts/game-context";
 
 // Helper validators
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -8,6 +10,8 @@ const isUsername = (v) => /^[a-zA-Z0-9._-]{3,20}$/.test(v);
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
+  const { loadProfile } = useContext(GameContext); // 👈 bring in game context
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
@@ -15,7 +19,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   function validateIdentifier(v) {
-    // allow either email OR username
     return isEmail(v) || isUsername(v);
   }
 
@@ -34,9 +37,17 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const data = await loginUser({ emailOrUsername, password });
-      if (data?.token) localStorage.setItem("token", data.token); // optional if you use JWT non-cookie
-      navigate("/play");
+      // step 1: login to get token
+      const data = await login({ emailOrUsername, password });
+        console.log(data);
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+
+        // step 2: fetch profile + store in GameContext
+        const userdata=await loadProfile(data.token);
+        console.log(userdata);
+      }
+      navigate("/categories");
     } catch (err) {
       const msg = err?.response?.data?.msg || err?.message || "Login failed";
       setError(msg);
@@ -45,7 +56,7 @@ export default function LoginPage() {
     }
   }
 
-   return (
+  return (
     <div className="min-h-screen w-full text-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
@@ -57,7 +68,7 @@ export default function LoginPage() {
           <p className="text-sm text-gray-400 mt-1">Login to play the daily puzzle</p>
         </div>
 
-        {/* Frosted, translucent card with visible borders */}
+        {/* Frosted card */}
         <form
           onSubmit={onSubmit}
           className="rounded-2xl border border-gray-700/70 bg-white/10 backdrop-blur-xl p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]"
@@ -97,7 +108,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Primary button: dark neutral gradient */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -107,11 +118,7 @@ export default function LoginPage() {
           </button>
 
           <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-            <a
-              className="hover:text-gray-200"
-              href="#"
-              onClick={(e) => e.preventDefault()}
-            >
+            <a className="hover:text-gray-200" href="#" onClick={(e) => e.preventDefault()}>
               Forgot password?
             </a>
             <Link className="hover:text-gray-200" to="/register">
@@ -127,10 +134,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-/* --- Test cases (manual) ---
-1) Login with email: "user@example.com" + correct password -> should navigate to /play
-2) Login with username: "sachinfan" + correct password -> should navigate to /play
-3) Invalid identifier: "ab" -> shows validation error (needs email OR username pattern)
-4) Missing password -> shows validation error
-*/

@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import ScoreboardCard from "../pages/scoreboard";
 import { fetchCategories, gameInit } from "../services/game-api";
-
+import { AuthContext } from "../contexts/auth-context";
+import { useGame } from "../contexts/game-context";
 const accents = [
   { text: "text-amber-300", border: "border-amber-500/50", glow: "shadow-[0_10px_30px_-10px_rgba(251,191,36,0.35)]" },
   { text: "text-rose-300", border: "border-rose-500/50", glow: "shadow-[0_10px_30px_-10px_rgba(244,63,94,0.35)]" },
@@ -19,12 +20,16 @@ function prettyTitle(s = "") {
 }
 
 export default function CategoriesPage() {
+  const { user} = useContext(AuthContext);
+  const { profile } = useGame();
+  // const currentUserId = user?._id;
   const [cats, setCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [starting, setStarting] = useState(false); // optional: show loader when creating puzzle
+  const [starting, setStarting] = useState(false);
   const navigate = useNavigate();
 
+  // Fetch categories on mount
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -40,13 +45,13 @@ export default function CategoriesPage() {
     return () => { mounted = false; };
   }, []);
 
+  // Prepare display cards
   const displayCards = useMemo(() => {
     return cats.map((raw, i) => {
       const key = String(raw).trim();
       const title = prettyTitle(key);
       const accent = accents[i % accents.length];
       const emoji = emojis[i % emojis.length];
-      console.log(key, title);
 
       const stats = {
         length: ["3–5", "4–6", "5–7", "4–8"][i % 4],
@@ -56,24 +61,31 @@ export default function CategoriesPage() {
 
       const desc = `${title} — take on themed words & climb the daily leaderboard.`;
 
-      return { key, title, emoji, desc, accent, stats, category: key };
+      return { key, title, emoji, desc, accent, stats, category: key,level:"1" };
     });
   }, [cats]);
 
-  // Handler is in parent — receives clicked category
+  // Handler when a category is clicked
   const handlePlay = async (category) => {
-    if (!category) {
-      alert("Invalid category");
-      return;
-    }
+    if (!category) return alert("Invalid category");
+
+    
 
     try {
       setStarting(true);
-      console.log("Starting puzzle for category:", category);
-      // call backend to create puzzle/session
-      const puzzle = await gameInit({ category, level: "1" , date: "2025-08-25"});
-      // navigate to /play and pass state (puzzle info + category)
-      navigate("/play", { state: { puzzle, category, level: "1" } });
+      const today = new Date().toISOString().slice(0, 10);
+
+      const payload = {
+        userId:user.id,
+        category,
+        level: "2",
+        date: today
+      };
+      console.log("userdata",profile);
+      console.log("hell",payload);
+      const puzzle = await gameInit(payload);
+      console.log("puzz",puzzle);
+      navigate("/play", { state: { puzzle } });
     } catch (err) {
       console.error("gameInit error:", err);
       alert(err?.msg || err?.message || "Could not start puzzle");
@@ -115,7 +127,8 @@ export default function CategoriesPage() {
                     accent={c.accent}
                     stats={c.stats}
                     category={c.category}
-                    onPlay={handlePlay} // PASS parent handler
+                    length={c.level}
+                    onPlay={handlePlay}
                   />
                 ))}
               </div>
