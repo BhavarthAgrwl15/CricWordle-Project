@@ -10,6 +10,8 @@ import { PrivateRoute, GuestRoute } from "../route-protect";
 import { AuthProvider } from "./contexts/auth-provider";
 import './index.css';
 import Matrix from "./components/matrix";
+import Leaderboard from "./pages/leaderboard";
+import Profile from "./pages/profile";
 
 export default function App() {
   return (
@@ -54,10 +56,26 @@ export default function App() {
                   }
                 />
                 <Route
+                  path="/leaderboard"
+                  element={
+                    <PrivateRoute>
+                      <Leaderboard />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
                   path="/categories"
                   element={
                     <PrivateRoute>
                       <CategoriesPage />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <PrivateRoute>
+                      <Profile />
                     </PrivateRoute>
                   }
                 />
@@ -71,11 +89,11 @@ export default function App() {
                     </PrivateRoute>
                   }
                 />
-              </Routes>
-            </main>
-          </div>
-        </div>
-      </BrowserRouter>
+          </Routes>
+        </main>
+      </div>
+    </div>
+     </BrowserRouter>
     </AuthProvider>
   );
 }

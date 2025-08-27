@@ -15,5 +15,7 @@ export const GAME_API = {
 };
 
 export const PROFILE_API={
-   ME: `${API_BASE}/profile/me`
+   ME: `${API_BASE}/profile/me`,
+  LEADERBOARD: `${API_BASE}/profile/leaderboard`  //new
+
 }

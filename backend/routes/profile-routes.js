@@ -1,30 +1,29 @@
-// routes/leaderboardRoutes.js
 const express = require("express");
 const router = express.Router();
-const GameSession = require("../models/GameSession");
+const GameSession = require("../models/game-session");
+const User = require("../models/user");
+const authMiddleware = require("../middleware/auth");
 
-// GET /api/leaderboard?date=YYYY-MM-DD&category=&limit=10
-router.get("/", async (req, res) => {
+// Leaderboard route (public)
+router.get("/leaderboard", async (req, res) => {
   try {
-    const { date, category, limit = 10 } = req.query;
+    const { date, category, limit = 10 } = req.body;
+    if (!date) return res.status(400).json({ error: "date query param is required" });
 
-    if (!date) {
-      return res.status(400).json({ error: "date query param is required" });
-    }
-
-    // Build filter
     const filter = { date };
     if (category) filter.category = category;
 
-    // Query GameSession
     const results = await GameSession.find(filter)
-      .populate("userId", "name email") // fetch user details from User collection
-      .sort({ score: -1 }) // highest score first
-      .limit(parseInt(limit));
+      .populate("userId", "name email")  // get user name/email
+      .sort({ score: -1 })
+      .limit(parseInt(limit))
+      .select("category levelReached userId attempts score"); // 👈 only pull needed fields
 
-    // Format response
     const response = results.map(item => ({
-      user: item.userId ? item.userId.name : "Anonymous",
+      userId: item.userId?._id || null,
+      user: item.userId?.name || "Anonymous",
+      category: item.category,
+      attempts: item.attempts,
       score: item.score,
       levelReached: item.levelReached,
     }));
@@ -36,16 +35,12 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/profile/me
+// Profile route (protected)
 router.get("/me", authMiddleware, async (req, res) => {
   try {
-    // current logged in user (set in authMiddleware)
-    const user = await User.findById(req.user.id).select("name email createdAt");
+    const user = req.user; // already fetched in middleware
 
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    // fetch last 5 sessions (most recent)
-    const sessions = await GameSession.find({ userId: req.user.id })
+    const sessions = await GameSession.find({ userId: user._id })
       .sort({ date: -1 })
       .limit(7);
 
@@ -55,6 +50,5 @@ router.get("/me", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 module.exports = router;

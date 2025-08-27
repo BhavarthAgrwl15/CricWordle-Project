@@ -57,3 +57,15 @@ export const finishPuzzle = async ({ puzzleId, result }) => {
     throw err.response?.data || { msg: "Failed to finish puzzle" };
   }
 };
+
+export const fetchGameSessions = async ({ date, category, limit = 10 }) => {
+  try {
+    const res = await axios.get(GAME_API.LIST, {
+      params: { date, category, limit }, // query params
+    });
+    console.log(res.data);
+    return res.data; // [{ user, score, levelReached, ... }]
+  } catch (err) {
+    throw err.response?.data || { msg: "Failed to fetch game session" };
+  }
+};

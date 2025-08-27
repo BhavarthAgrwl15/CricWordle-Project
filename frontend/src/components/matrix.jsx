@@ -92,7 +92,7 @@ export default function Matrix() {
     }
   };
 
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const letters = "QWERTYUIOPASDFGHJKLZXCVBNM".split("");
 
   const getCellColor = (row, col) => {
     const fb = feedbackGrid[row][col];

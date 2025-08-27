@@ -1,10 +1,11 @@
 const express = require("express");
 const DailyWord = require("../models/daily-word");
 const GameSession = require("../models/game-session");
+const authMiddleware = require("../middleware/auth"); // import
 
 const router = express.Router();
 
-// ✅ Get all categories
+// ✅ Get all categories (public)
 router.get("/", async (req, res) => {
   try {
     const categories = await DailyWord.distinct("category");
@@ -15,51 +16,44 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ Initialize puzzle session
-router.post("/init", async (req, res) => {
+// ✅ Initialize puzzle session (protected)
+router.post("/init", authMiddleware, async (req, res) => {
   try {
     const { category, level, date } = req.body;
+    const userId = req.user._id; // from authMiddleware
 
     if (!category || !level) {
       return res.status(400).json({ msg: "category and level are required" });
     }
 
-    // Use provided date (useful for testing) otherwise use today
     const day = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
 
-    // find the DailyWord for that day/category/level
     const dailyWord = await DailyWord.findOne({ date: day, category, level });
-    if (!dailyWord) {
-      return res.status(404).json({ msg: "No word found for this category & level on the requested date" });
-    }
+    if (!dailyWord) return res.status(404).json({ msg: "No word found" });
 
     const maxAttempts = 6;
     const expiresAt = new Date();
     expiresAt.setHours(23, 59, 59, 999);
 
-    // Build the session object - userId optional (if you use auth, attach req.user._id)
-    const sessionData = {
-      userId: req.user ? req.user._id : undefined, // keep undefined if none
+    const session = new GameSession({
+      userId,
       date: day,
       category,
       level: String(level),
       wordId: dailyWord._id,
       maxAttempts,
-      attempts: [],        // start with empty guesses array
+      attempts: [],
       expiresAt
-    };
+    });
 
-    const session = new GameSession(sessionData);
     await session.save();
 
-    // Calculate word length robustly (accept 'answer' or 'word' field in DailyWord)
-    const wordText = (dailyWord.answer || dailyWord.word || "").toString();
-    const wordLength = wordText.length;
-
+    const wordLength = (dailyWord.answer || dailyWord.word).length;
     res.json({
       puzzleId: session._id,
       maxAttempts,
       wordLength,
+      word: dailyWord.word,
       expiresAt
     });
   } catch (err) {
@@ -68,82 +62,73 @@ router.post("/init", async (req, res) => {
   }
 });
 
-// ✅ Guess route
-router.post("/guess", async (req, res) => {
+// ✅ Guess route (protected)
+router.post("/guess", authMiddleware, async (req, res) => {
   try {
     const { puzzleId, guess } = req.body;
+    const userId = req.user._id;
 
-    if (!puzzleId || !guess) {
-      return res.status(400).json({ msg: "puzzleId and guess are required" });
+    if (!puzzleId || !guess) return res.status(400).json({ msg: "puzzleId and guess are required" });
+
+    const session = await GameSession.findById(puzzleId).populate("wordId");
+    if (!session) return res.status(404).json({ msg: "Puzzle session not found" });
+
+    if (session.userId.toString() !== userId.toString()) {
+      return res.status(403).json({ msg: "Not authorized" });
     }
 
-    const puzzle = await DailyWord.findById(puzzleId);
-    if (!puzzle) {
-      return res.status(404).json({ msg: "Puzzle not found" });
-    }
+    if (session.finishedAt) return res.status(400).json({ msg: "Puzzle already finished" });
 
-    const solution = puzzle.word.toLowerCase();
+    const solution = (session.wordId.answer || session.wordId.word).toLowerCase();
     const attempt = guess.toLowerCase();
 
-    if (attempt.length !== solution.length) {
-      return res.status(400).json({ msg: "Guess length mismatch" });
-    }
+    if (attempt.length !== solution.length) return res.status(400).json({ msg: "Guess length mismatch" });
 
     const feedback = Array(solution.length).fill("absent");
     const used = Array(solution.length).fill(false);
 
-    // Mark correct
     for (let i = 0; i < solution.length; i++) {
-      if (attempt[i] === solution[i]) {
-        feedback[i] = "correct";
-        used[i] = true;
-      }
+      if (attempt[i] === solution[i]) { feedback[i] = "correct"; used[i] = true; }
     }
-
-    // Mark present
     for (let i = 0; i < solution.length; i++) {
       if (feedback[i] === "correct") continue;
       for (let j = 0; j < solution.length; j++) {
-        if (!used[j] && attempt[i] === solution[j]) {
-          feedback[i] = "present";
-          used[j] = true;
-          break;
-        }
+        if (!used[j] && attempt[i] === solution[j]) { feedback[i] = "present"; used[j] = true; break; }
       }
     }
 
-    let attemptsLeft = puzzle.attemptsLeft ?? 6;
-    attemptsLeft = Math.max(attemptsLeft - 1, 0);
+    session.attempts.push(guess);
+    await session.save();
 
+    const attemptsLeft = session.maxAttempts - session.attempts.length;
     const solved = feedback.every(f => f === "correct");
 
-    puzzle.attemptsLeft = attemptsLeft;
-    await puzzle.save();
-
-    res.json({ feedback, solved, attemptsLeft });
+    res.json({ feedback, solved, attemptsLeft: Math.max(attemptsLeft, 0) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Server Error" });
   }
 });
 
-// ✅ Finish puzzle
-router.post("/finish", async (req, res) => {
+// ✅ Finish puzzle route (protected)
+router.post("/finish", authMiddleware, async (req, res) => {
   try {
     const { puzzleId, result } = req.body;
+    const userId = req.user._id;
 
-    const session = await PuzzleSession.findById(puzzleId);
-    if (!session) {
-      return res.status(404).json({ msg: "Puzzle session not found" });
+    if (!puzzleId) return res.status(400).json({ msg: "puzzleId is required" });
+
+    const session = await GameSession.findById(puzzleId);
+    if (!session) return res.status(404).json({ msg: "Puzzle session not found" });
+
+    if (session.userId.toString() !== userId.toString()) {
+      return res.status(403).json({ msg: "Not authorized" });
     }
-    if (session.finishedAt) {
-      return res.status(400).json({ msg: "Puzzle already finished" });
-    }
+
+    if (session.finishedAt) return res.status(400).json({ msg: "Puzzle already finished" });
 
     let score = 0;
-    if (result === "won") {
-      score = (6 - session.attemptsLeft) * 10; // scoring logic
-    }
+    if (result === "won") score = (session.maxAttempts - session.attempts.length) * 10;
 
     session.finishedAt = new Date();
     session.score = score;
