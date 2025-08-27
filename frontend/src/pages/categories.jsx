@@ -4,6 +4,7 @@ import ScoreboardCard from "../pages/scoreboard";
 import { fetchCategories, gameInit } from "../services/game-api";
 import { AuthContext } from "../contexts/auth-context";
 import { useGame } from "../contexts/game-context";
+
 const accents = [
   { text: "text-amber-300", border: "border-amber-500/50", glow: "shadow-[0_10px_30px_-10px_rgba(251,191,36,0.35)]" },
   { text: "text-rose-300", border: "border-rose-500/50", glow: "shadow-[0_10px_30px_-10px_rgba(244,63,94,0.35)]" },
@@ -20,9 +21,8 @@ function prettyTitle(s = "") {
 }
 
 export default function CategoriesPage() {
-  const { user} = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const { profile } = useGame();
-  // const currentUserId = user?._id;
   const [cats, setCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -61,7 +61,7 @@ export default function CategoriesPage() {
 
       const desc = `${title} — take on themed words & climb the daily leaderboard.`;
 
-      return { key, title, emoji, desc, accent, stats, category: key,level:"1" };
+      return { key, title, emoji, desc, accent, stats, category: key, level: "1" };
     });
   }, [cats]);
 
@@ -69,22 +69,36 @@ export default function CategoriesPage() {
   const handlePlay = async (category) => {
     if (!category) return alert("Invalid category");
 
-    
-
     try {
       setStarting(true);
       const today = new Date().toISOString().slice(0, 10);
 
+      // 🔑 find all past sessions of this category
+      const sessionsInCat = profile?.recentSessions?.filter(
+        (s) => s.category === category
+      ) || [];
+
+      // 🔑 get max level (parse to number since it's stored as string)
+      const maxLevel = sessionsInCat.length
+        ? Math.max(...sessionsInCat.map((s) => Number(s.level) || 0))
+        : 0;
+
+      // 🔑 next level = maxLevel + 1
+      const nextLevel = maxLevel + 1;
+
       const payload = {
-        userId:user.id,
+        userId: user?.id,
         category,
-        level: "2",
-        date: today
+        level: String(nextLevel),
+        date: today,
       };
-      console.log("userdata",profile);
-      console.log("hell",payload);
+
+      console.log("profile", profile);
+      console.log("Starting payload", payload);
+
       const puzzle = await gameInit(payload);
-      console.log("puzz",puzzle);
+      console.log("Puzzle:", puzzle);
+
       navigate("/play", { state: { puzzle } });
     } catch (err) {
       console.error("gameInit error:", err);
@@ -99,22 +113,34 @@ export default function CategoriesPage() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-10">
           <div className="text-4xl select-none">🏏</div>
-          <h1 className="mt-2 text-3xl md:text-4xl font-extrabold text-white">Choose Your Category</h1>
-          <p className="text-sm md:text-base text-gray-400 mt-2">Pick a theme and start the daily puzzle.</p>
+          <h1 className="mt-2 text-3xl md:text-4xl font-extrabold text-white">
+            Choose Your Category
+          </h1>
+          <p className="text-sm md:text-base text-gray-400 mt-2">
+            Pick a theme and start the daily puzzle.
+          </p>
         </div>
 
-        {loading && <div className="grid place-items-center py-14 text-gray-400">Loading categories…</div>}
+        {loading && (
+          <div className="grid place-items-center py-14 text-gray-400">
+            Loading categories…
+          </div>
+        )}
 
         {!loading && err && (
           <div className="grid place-items-center py-10">
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div>
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {err}
+            </div>
           </div>
         )}
 
         {!loading && !err && (
           <>
             {displayCards.length === 0 ? (
-              <div className="grid place-items-center py-14 text-gray-400">No categories available right now.</div>
+              <div className="grid place-items-center py-14 text-gray-400">
+                No categories available right now.
+              </div>
             ) : (
               <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3">
                 {displayCards.map((c, i) => (
@@ -137,10 +163,14 @@ export default function CategoriesPage() {
         )}
 
         {starting && (
-          <div className="text-center mt-6 text-sm text-gray-200">Starting puzzle…</div>
+          <div className="text-center mt-6 text-sm text-gray-200">
+            Starting puzzle…
+          </div>
         )}
 
-        <div className="text-center text-[11px] text-gray-400 mt-8">Tip: come back daily — words rotate every day.</div>
+        <div className="text-center text-[11px] text-gray-400 mt-8">
+          Tip: come back daily — words rotate every day.
+        </div>
       </div>
     </div>
   );

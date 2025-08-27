@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GAME_API } from "./api";
+import { GAME_API, PROFILE_API } from "./api";
 
 const getAuthHeader = () => {
   const token = localStorage.getItem("token");
@@ -21,7 +21,7 @@ export const gameInit = async ({ category, level, date }) => {
   try {
     const res = await axios.post(
       GAME_API.INIT,
-      { category, level, date }, // ❌ no userId here
+      { category, level, date }, 
       getAuthHeader()
     );
     return res.data; // { puzzleId, maxAttempts, wordLength, word, expiresAt }
@@ -60,12 +60,25 @@ export const finishPuzzle = async ({ puzzleId, result }) => {
 
 export const fetchGameSessions = async ({ date, category, limit = 10 }) => {
   try {
-    const res = await axios.get(GAME_API.LIST, {
-      params: { date, category, limit }, // query params
+    console.log(date,category,limit);
+    const res = await axios.post(PROFILE_API.LEADERBOARD, {
+      date,
+      category,
+      limit,
     });
     console.log(res.data);
     return res.data; // [{ user, score, levelReached, ... }]
   } catch (err) {
     throw err.response?.data || { msg: "Failed to fetch game session" };
+  }
+};
+
+export const fetchAllGameSessions = async () => {
+  try {
+    const res = await axios.get(PROFILE_API.SESSIONS);
+    console.log("All sessions:", res.data);
+    return res.data; // [{ user, email, category, score, levelReached, createdAt, ... }]
+  } catch (err) {
+    throw err.response?.data || { msg: "Failed to fetch all game sessions" };
   }
 };

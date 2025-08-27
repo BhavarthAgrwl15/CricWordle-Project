@@ -5,8 +5,9 @@ const User = require("../models/user");
 const authMiddleware = require("../middleware/auth");
 
 // Leaderboard route (public)
-router.get("/leaderboard", async (req, res) => {
+router.post("/leaderboard", async (req, res) => {
   try {
+    console.log("date",req.body);
     const { date, category, limit = 10 } = req.body;
     if (!date) return res.status(400).json({ error: "date query param is required" });
 
@@ -28,6 +29,31 @@ router.get("/leaderboard", async (req, res) => {
       levelReached: item.levelReached,
     }));
 
+    res.json(response);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+router.get("/sessions", async (req, res) => {
+  try {
+    const results = await GameSession.find({})
+      .populate("userId", "name email") // populate user info
+      .sort({ createdAt: -1 }) // optional: latest first
+      .select("category level userId attempts score createdAt");
+    // console.log(results);
+    const response = results.map(item => ({
+      userId: item.userId?._id || null,
+      user: item.userId?.name || "Anonymous",
+      email: item.userId?.email || null,
+      category: item.category,
+      attempts: item.attempts,
+      score: item.score,
+      levelReached: item.level,
+      createdAt: item.createdAt,
+    }));
+    console.log(response);
     res.json(response);
   } catch (err) {
     console.error(err);

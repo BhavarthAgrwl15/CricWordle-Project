@@ -47,7 +47,7 @@ export default function LoginPage() {
         const userdata=await loadProfile(data.token);
         console.log(userdata);
       }
-      navigate("/categories");
+      navigate("/");
     } catch (err) {
       const msg = err?.response?.data?.msg || err?.message || "Login failed";
       setError(msg);

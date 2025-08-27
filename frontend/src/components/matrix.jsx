@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { sendGuess, finishPuzzle } from "../services/game-api"; // your API functions
 import { AuthContext } from "../contexts/auth-context";
 import toast, { Toaster } from "react-hot-toast"; // toast library
+import { useGame } from "../contexts/game-context";
 
 export default function Matrix() {
   const location = useLocation();
@@ -11,6 +12,7 @@ export default function Matrix() {
   const { puzzle } = location.state || {};
   const { maxAttempts, wordLength, word, puzzleId } = puzzle || {};
   const { user } = useContext(AuthContext);
+    const { loadProfile } = useGame();
   const userId = user.id;
 
   const [grid, setGrid] = useState(
@@ -71,14 +73,16 @@ export default function Matrix() {
       if (result.solved) {
         await finishPuzzle({ puzzleId, result: "won", userId });
         toast.success("Congratulations! You won!");
-        setTimeout(() => navigate("/leaderboard"), 1000); // navigate after 1.5s
+        await loadProfile();
+        setTimeout(() => navigate("/categories"), 1000); // navigate after 1.5s
         return;
       }
 
       if (currentRow >= maxAttempts - 1) {
         await finishPuzzle({ puzzleId, result: "lost", userId });
         toast.error("Puzzle over! You lost.");
-        setTimeout(() => navigate("/leaderboard"), 1000); // navigate after 1.5s
+        await loadProfile();
+        setTimeout(() => navigate("/categories"), 1000);  // navigate after 1.5s
         return;
       }
 
@@ -102,12 +106,24 @@ export default function Matrix() {
     return "bg-gray-600 text-white";
   };
 
-  return (
-    <div className="p-4 flex flex-col items-center gap-6">
-      <Toaster position="top-center" reverseOrder={false} />{" "}
-      {/* Toast container */}
-      <h1 className="text-2xl font-bold mb-4">Matrix Game</h1>
-      {/* Grid */}
+return (
+  <div className="p-4 flex flex-col items-center gap-6">
+    <Toaster position="top-center" reverseOrder={false} />
+    <h1 className="text-2xl font-bold mb-4">Matrix Game</h1>
+
+    {/* Rules -- Grid -- Colored Boxes side by side */}
+    <div className="flex flex-col md:flex-row gap-12 items-start">
+      
+      {/* Rules Section (you will write here) */}
+      <div className="md:w-64">
+        <h2 className="text-lg font-semibold mb-2">Rules</h2>
+        <p className="text-sm text-gray-300">
+          {/* ✍️ Add your own rules here */}
+          Type the correct word within 6 guess.
+        </p>
+      </div>
+
+      {/* Grid Section */}
       <div className="grid gap-2">
         {grid.map((row, rIdx) => (
           <div key={rIdx} className="flex gap-2">
@@ -138,24 +154,51 @@ export default function Matrix() {
           </div>
         ))}
       </div>
-      {/* Virtual Keyboard */}
-      <div className="grid grid-cols-10 gap-2 mt-4">
-        {letters.map((l) => (
-          <button
-            key={l}
-            className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-600"
-            onClick={() => handleInput(l)}
-          >
-            {l}
-          </button>
-        ))}
-        <button
-          className="col-span-2 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-500"
-          onClick={handleBackspace}
-        >
-          Backspace
-        </button>
+
+      {/* Colored Boxes Section */}
+      <div className="flex flex-col gap-6 md:w-64 items-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 rounded bg-green-500"></div>
+          <span className="mt-2 text-sm text-center text-gray-200">
+            Correct letter & position
+          </span>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 rounded bg-yellow-400"></div>
+          <span className="mt-2 text-sm text-center text-gray-200">
+            Correct letter, wrong position
+          </span>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 rounded bg-red-500"></div>
+          <span className="mt-2 text-sm text-center text-gray-200">
+            Letter not in the word
+          </span>
+        </div>
       </div>
     </div>
-  );
+
+    {/* Virtual Keyboard */}
+    <div className="grid grid-cols-10 gap-2 mt-6">
+      {letters.map((l) => (
+        <button
+          key={l}
+          className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-600"
+          onClick={() => handleInput(l)}
+        >
+          {l}
+        </button>
+      ))}
+      <button
+        className="col-span-2 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-500"
+        onClick={handleBackspace}
+      >
+        Backspace
+      </button>
+    </div>
+  </div>
+);
+
+
+
 }

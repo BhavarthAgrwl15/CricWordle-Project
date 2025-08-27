@@ -20,6 +20,7 @@ router.get("/", async (req, res) => {
 router.post("/init", authMiddleware, async (req, res) => {
   try {
     const { category, level, date } = req.body;
+    console.log(category,level,date);
     const userId = req.user._id; // from authMiddleware
 
     if (!category || !level) {
