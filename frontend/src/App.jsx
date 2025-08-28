@@ -12,6 +12,7 @@ import './index.css';
 import Matrix from "./components/matrix";
 import Leaderboard from "./pages/leaderboard";
 import Profile from "./pages/profile";
+import Start from "./pages/game";
 
 export default function App() {
   return (
@@ -68,6 +69,14 @@ export default function App() {
                   element={
                     <PrivateRoute>
                       <CategoriesPage />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/start"
+                  element={
+                    <PrivateRoute>
+                      <Start />
                     </PrivateRoute>
                   }
                 />

@@ -66,47 +66,44 @@ export default function CategoriesPage() {
   }, [cats]);
 
   // Handler when a category is clicked
-  const handlePlay = async (category) => {
-    if (!category) return alert("Invalid category");
+  // wherever handlePlay lives
+const handlePlay = (category) => {
+  if (!category) return alert("Invalid category");
 
-    try {
-      setStarting(true);
-      const today = new Date().toISOString().slice(0, 10);
+  setStarting(true);
+  try {
+    const today = new Date().toISOString().slice(0, 10);
 
-      // 🔑 find all past sessions of this category
-      const sessionsInCat = profile?.recentSessions?.filter(
-        (s) => s.category === category
-      ) || [];
+    // find all past sessions of this category
+    const sessionsInCat =
+      profile?.recentSessions?.filter((s) => s.category === category) || [];
 
-      // 🔑 get max level (parse to number since it's stored as string)
-      const maxLevel = sessionsInCat.length
-        ? Math.max(...sessionsInCat.map((s) => Number(s.level) || 0))
-        : 0;
+    // compute next level
+    const maxLevel = sessionsInCat.length
+      ? Math.max(...sessionsInCat.map((s) => Number(s.level) || 0))
+      : 0;
+    const nextLevel = maxLevel + 1;
 
-      // 🔑 next level = maxLevel + 1
-      const nextLevel = maxLevel + 1;
+    const initPayload = {
+      userId: user?.id,
+      category,
+      level: String(nextLevel),
+      date: today,
+    };
 
-      const payload = {
-        userId: user?.id,
-        category,
-        level: String(nextLevel),
-        date: today,
-      };
+    console.log("Starting payload (sent to Start page):", initPayload);
 
-      console.log("profile", profile);
-      console.log("Starting payload", payload);
+    // ✅ pass only the payload; Start.jsx will call gameInit
+    navigate("/start", { state: { initPayload } });
+  } catch (err) {
+    console.error("navigate/start error:", err);
+    alert(err?.msg || err?.message || "Could not open start screen");
+  } finally {
+    // this component will likely unmount after navigate, but this is harmless
+    setStarting(false);
+  }
+};
 
-      const puzzle = await gameInit(payload);
-      console.log("Puzzle:", puzzle);
-
-      navigate("/play", { state: { puzzle } });
-    } catch (err) {
-      console.error("gameInit error:", err);
-      alert(err?.msg || err?.message || "Could not start puzzle");
-    } finally {
-      setStarting(false);
-    }
-  };
 
   return (
     <div className="min-h-screen w-full text-gray-100 px-6 py-10">

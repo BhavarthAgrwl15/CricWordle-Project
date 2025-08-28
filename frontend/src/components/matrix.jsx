@@ -74,7 +74,7 @@ export default function Matrix() {
         await finishPuzzle({ puzzleId, result: "won", userId });
         toast.success("Congratulations! You won!");
         await loadProfile();
-        setTimeout(() => navigate("/categories"), 1000); // navigate after 1.5s
+        setTimeout(() => navigate("/start"), 1000); // navigate after 1.5s
         return;
       }
 
@@ -82,7 +82,7 @@ export default function Matrix() {
         await finishPuzzle({ puzzleId, result: "lost", userId });
         toast.error("Puzzle over! You lost.");
         await loadProfile();
-        setTimeout(() => navigate("/categories"), 1000);  // navigate after 1.5s
+        setTimeout(() => navigate("/start"), 1000);  // navigate after 1.5s
         return;
       }
 
