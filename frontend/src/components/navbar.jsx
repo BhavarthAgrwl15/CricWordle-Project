@@ -1,83 +1,98 @@
 // src/components/NavBar.jsx
-import React, { useState, useContext, useRef, useEffect } from "react";
+import React, { useContext, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/auth-context";
+import { FaFire, FaSignOutAlt } from "react-icons/fa";
+import { useGame } from "../contexts/game-context";
 
 export default function NavBar() {
   const { user, logout } = useContext(AuthContext);
+  const { profile } = useGame();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  // Close dropdown on outside click / escape
-  useEffect(() => {
-    console.log("navbar",user);
-    function onDocClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
-    }
-    function onEsc(e) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("touchstart", onDocClick);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("touchstart", onDocClick);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, []);
 
   const handleLogout = async () => {
     try {
-      // If logout is async (calling API), await it. In our context it's sync but supporting both.
       await logout();
     } catch (err) {
       console.warn("logout failed", err);
     } finally {
-      setMenuOpen(false);
-      navigate("/"); // send user to home after logout
+      navigate("/");
     }
   };
 
-  const userInitial = (() => {
-    if (!user) return "U";
-    if (user.name && user.name.length) return user.name.trim()[0].toUpperCase();
-    if (user.username && user.username.length) return user.username.trim()[0].toUpperCase();
-    if (user.email && user.email.length) return user.email.trim()[0].toUpperCase();
-    return "U";
-  })();
+  // ✅ Calculate streak
+  const streakCount = useMemo(() => {
+    if (!profile?.recentSessions?.length) return 0;
+
+    const dates = [...new Set(profile.recentSessions.map((s) => s.date))].sort(
+      (a, b) => new Date(b) - new Date(a)
+    );
+
+    let streak = 0;
+    let today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < dates.length; i++) {
+      const d = new Date(dates[i]);
+      d.setHours(0, 0, 0, 0);
+
+      if (d.getTime() === today.getTime()) {
+        streak++;
+        today.setDate(today.getDate() - 1);
+      } else if (d.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
+        streak++;
+        today.setDate(today.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [profile]);
 
   return (
     <nav className="bg-black/70 backdrop-blur sticky top-0 z-50 border-b border-gray-800">
-      <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 text-white font-bold text-xl">
-          🏏 <span>Cricket Wordle</span>
-        </Link>
+      <div className="max-w-7xl mx-auto px-6 py-3 grid grid-cols-3 items-center">
+        {/* Left: Logo + CricWordle */}
+        <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 group cursor-pointer">
+            {/* rectangular rounded container that sizes by height; image keeps its aspect ratio */}
+            <div className="h-12 md:h-16 rounded-xl overflow-hidden shadow-md transition-transform duration-300 group-hover:scale-105 bg-white/5">
+              <img
+                src="/logo2.png" /* transparent PNG/SVG provided */
+                alt="Cricket Wordle"
+                className="h-full w-auto block object-contain"
+              />
+            </div>
+          </Link>
+        </div>
 
-        {/* Menu */}
-        <ul className="hidden md:flex space-x-8 text-gray-300 font-medium">
+        {/* Center: Menu */}
+        <ul className="flex justify-center space-x-8 text-gray-300 font-medium">
           <li>
-            <Link to="/" className="hover:text-white transition">Home</Link>
+            <Link to="/" className="hover:text-white transition">
+              Home
+            </Link>
           </li>
           <li>
-            <Link to="/categories" className="hover:text-white transition">Categories</Link>
+            <Link to="/categories" className="hover:text-white transition">
+              Categories
+            </Link>
           </li>
           <li>
-            <Link to="/leaderboard" className="hover:text-white transition">Leaderboard</Link>
+            <Link to="/leaderboard" className="hover:text-white transition">
+              Leaderboard
+            </Link>
           </li>
           <li>
-            <Link to="/about" className="hover:text-white transition">About</Link>
+            <Link to="/about" className="hover:text-white transition">
+              About
+            </Link>
           </li>
         </ul>
 
-        {/* Auth / Profile */}
-        <div className="flex items-center gap-4 relative" ref={menuRef}>
+        {/* Right: Streak + Profile + Logout */}
+        <div className="flex items-center gap-5 justify-end">
           {!user ? (
-            // not logged in
             <>
               <Link
                 to="/login"
@@ -93,54 +108,36 @@ export default function NavBar() {
               </Link>
             </>
           ) : (
-            // logged in: show avatar / dropdown
             <>
-              <button
-                onClick={() => setMenuOpen(v => !v)}
-                aria-haspopup="true"
-                aria-expanded={menuOpen}
-                className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-sm font-semibold text-white hover:scale-[1.02] transition-shadow shadow-sm"
-                title={user.name || user.email || "Profile"}
+              {/* 🔥 Streak */}
+              <div className="flex items-center gap-1 text-blue-400 font-semibold">
+                <FaFire className="w-5 h-5" />
+                <span>{streakCount}</span>
+              </div>
+
+              {/* Profile link */}
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 text-gray-200 font-medium hover:text-white transition cursor-pointer"
+                title={user.name || user.username || user.email}
               >
-                {userInitial}
+                <span className="truncate max-w-[120px]">
+                  {user.name || user.username || user.email}
+                </span>
+                <img
+                  src="/jersey.jpg"
+                  alt="Jersey"
+                  className="h-8 w-8 object-cover rounded-full border border-gray-500 shadow-sm"
+                />
+              </Link>
+
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium text-rose-400 hover:bg-white/5 transition"
+              >
+                <FaSignOutAlt /> Logout
               </button>
-
-              {/* dropdown */}
-              {menuOpen && (
-                <div className="absolute right-0 top-full mt-3 w-44 bg-black/90 border border-gray-800 rounded-lg shadow-lg overflow-hidden z-50">
-                  <div className="px-4 py-3 border-b border-gray-800">
-                    <div className="text-sm text-gray-200 font-semibold truncate">{user.name || user.username || user.email}</div>
-                    <div className="text-xs text-gray-400">{user.email}</div>
-                  </div>
-
-                  <div className="flex flex-col py-2">
-                    <Link
-                      to="/profile"
-                      onClick={() => setMenuOpen(false)}
-                      className="px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition"
-                    >
-                      Profile
-                    </Link>
-
-                    <Link
-                      to="/leaderboard"
-                      onClick={() => setMenuOpen(false)}
-                      className="px-4 py-2 text-sm text-gray-200 hover:bg-white/5 transition"
-                    >
-                      Leaderboard
-                    </Link>
-
-                    <div className="border-t border-gray-800 my-1" />
-
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-white/5 transition"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>

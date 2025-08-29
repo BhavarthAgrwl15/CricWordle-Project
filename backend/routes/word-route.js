@@ -20,8 +20,7 @@ router.get("/", async (req, res) => {
 router.post("/init", authMiddleware, async (req, res) => {
   try {
     const { category, level, date } = req.body;
-    console.log(category,level,date);
-    const userId = req.user._id; // from authMiddleware
+    const userId = req.user._id;
 
     if (!category || !level) {
       return res.status(400).json({ msg: "category and level are required" });
@@ -29,6 +28,7 @@ router.post("/init", authMiddleware, async (req, res) => {
 
     const day = date ? String(date).slice(0, 10) : new Date().toISOString().slice(0, 10);
 
+    // fetch DailyWord
     const dailyWord = await DailyWord.findOne({ date: day, category, level });
     if (!dailyWord) return res.status(404).json({ msg: "No word found" });
 
@@ -49,19 +49,22 @@ router.post("/init", authMiddleware, async (req, res) => {
 
     await session.save();
 
-    const wordLength = (dailyWord.answer || dailyWord.word).length;
+    const wordLength = dailyWord.word.length;
+
+    // ✅ send maxScore from dailyWord.points
     res.json({
       puzzleId: session._id,
       maxAttempts,
       wordLength,
-      word: dailyWord.word,
-      expiresAt
+      expiresAt,
+      maxScore: dailyWord.points   // new field
     });
   } catch (err) {
     console.error("puzzle.init err:", err);
     res.status(500).json({ msg: "Server Error", error: err.message });
   }
 });
+
 
 // ✅ Guess route (protected)
 router.post("/guess", authMiddleware, async (req, res) => {
@@ -114,12 +117,12 @@ router.post("/guess", authMiddleware, async (req, res) => {
 // ✅ Finish puzzle route (protected)
 router.post("/finish", authMiddleware, async (req, res) => {
   try {
-    const { puzzleId, result } = req.body;
+    const { puzzleId, score } = req.body;   // ✅ frontend sends achieved score
     const userId = req.user._id;
 
     if (!puzzleId) return res.status(400).json({ msg: "puzzleId is required" });
 
-    const session = await GameSession.findById(puzzleId);
+    const session = await GameSession.findById(puzzleId).populate("wordId");
     if (!session) return res.status(404).json({ msg: "Puzzle session not found" });
 
     if (session.userId.toString() !== userId.toString()) {
@@ -128,14 +131,12 @@ router.post("/finish", authMiddleware, async (req, res) => {
 
     if (session.finishedAt) return res.status(400).json({ msg: "Puzzle already finished" });
 
-    let score = 0;
-    if (result === "won") score = (session.maxAttempts - session.attempts.length) * 10;
-
+    // ✅ store score provided by frontend
     session.finishedAt = new Date();
-    session.score = score;
+    session.score = Number(score) || 0;
     await session.save();
 
-    res.json({ success: true, score });
+    res.json({ success: true, score: session.score, maxScore: session.wordId.points });
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Internal server error" });

@@ -21,10 +21,11 @@ export const gameInit = async ({ category, level, date }) => {
   try {
     const res = await axios.post(
       GAME_API.INIT,
-      { category, level, date }, 
+      { category, level, date },
       getAuthHeader()
     );
-    return res.data; // { puzzleId, maxAttempts, wordLength, word, expiresAt }
+    // Backend returns: { puzzleId, maxAttempts, wordLength, expiresAt, maxScore }
+    return res.data;
   } catch (err) {
     throw err.response?.data || { msg: "Failed to init game" };
   }
@@ -45,13 +46,14 @@ export const sendGuess = async ({ puzzleId, guess }) => {
 };
 
 // Finish puzzle
-export const finishPuzzle = async ({ puzzleId, result }) => {
+export const finishPuzzle = async ({ puzzleId,result, score }) => {
   try {
     const res = await axios.post(
       GAME_API.FINISH,
-      { puzzleId, result },
+      { puzzleId, result,score },  // 👈 now sending score, not result
       getAuthHeader()
     );
+    // Backend returns: { success, score, maxScore }
     return res.data;
   } catch (err) {
     throw err.response?.data || { msg: "Failed to finish puzzle" };

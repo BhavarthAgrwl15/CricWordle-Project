@@ -12,13 +12,14 @@ router.post("/seed", async (req, res) => {
 
     const docs = wordSets
       .map(set => {
-        const { date, category, level, word } = set;
-        if (!date || !category || !level || !word) return null;
+        const { date, category, level, word, points } = set;
+        if (!date || !category || !level || !word || points == null) return null;
 
         return {
           date: String(date).trim(),
           category: String(category).toLowerCase().trim(),
           level: String(level).trim(),
+          points: Number(points), // ✅ ensure numeric
           word: String(word).toLowerCase().trim(),
         };
       })
@@ -35,5 +36,6 @@ router.post("/seed", async (req, res) => {
     res.status(500).json({ error: "Seed error", details: err.message });
   }
 });
+
 
 module.exports = router;

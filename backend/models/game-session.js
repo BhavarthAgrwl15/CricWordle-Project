@@ -22,7 +22,7 @@ const gameSessionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-
+ 
   wordId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "DailyWord",

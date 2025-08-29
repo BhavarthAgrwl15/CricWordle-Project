@@ -59,18 +59,6 @@ export default function ScoreboardCard({
           Play <span aria-hidden>→</span>
         </button>
       </div>
-
-      <div className="mt-4 h-10 rounded-lg border border-gray-700/60 bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-between px-3 text-[11px] text-gray-300">
-        <span className="flex items-center gap-1">
-          🧩 <span className="text-gray-200">Word Length</span> ▸ {length}
-        </span>
-        <span className="flex items-center gap-1">
-          🎯 <span className="text-gray-200">Guesses</span> ▸ {guesses}
-        </span>
-        <span className="flex items-center gap-1">
-          🔥 <span className="text-gray-200">Streak Bonus</span> ▸ {bonus}
-        </span>
-      </div>
     </div>
   );
 }

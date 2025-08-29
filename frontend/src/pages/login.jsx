@@ -3,6 +3,7 @@ import React, { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../contexts/auth-context";
 import { GameContext } from "../contexts/game-context";
+import toast from "react-hot-toast";
 
 // Helper validators
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -47,6 +48,7 @@ export default function LoginPage() {
         const userdata=await loadProfile(data.token);
         console.log(userdata);
       }
+      toast.success("Login done successfully")
       navigate("/");
     } catch (err) {
       const msg = err?.response?.data?.msg || err?.message || "Login failed";
@@ -121,7 +123,7 @@ export default function LoginPage() {
             <a className="hover:text-gray-200" href="#" onClick={(e) => e.preventDefault()}>
               Forgot password?
             </a>
-            <Link className="hover:text-gray-200" to="/register">
+            <Link className="hover:text-gray-200" to="/signup">
               Create account
             </Link>
           </div>

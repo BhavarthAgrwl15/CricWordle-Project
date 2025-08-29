@@ -17,6 +17,10 @@ const DailyWordSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+   points: {
+    type: Number, // e.g. 1, 2, 3 ...
+    required: true,
+  },
   word: {
     type: String,
     required: true,

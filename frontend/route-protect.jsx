@@ -13,11 +13,11 @@ export const PrivateRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" replace />;
 };
 
-// Only allow guests (not logged-in)
+
 export const GuestRoute = ({ children }) => {
   const { user, hydrated } = useContext(AuthContext);
 
   if (!hydrated) return null;
 
-  return !user ? children : <Navigate to="/categories" replace />;
+  return (user || !user) ? children : <Navigate to="/" replace />;
 };

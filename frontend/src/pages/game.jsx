@@ -49,9 +49,7 @@ export default function Start() {
 
         const cat = initPayload.category;
         // Fallback date: today
-        const date =
-          initPayload.date ||
-          new Date().toISOString().slice(0, 10);
+        const date = initPayload.date || new Date().toISOString().slice(0, 10);
 
         // Fallback level: compute next from profile if missing, else default "1"
         let levelStr = initPayload.level;
@@ -68,6 +66,7 @@ export default function Start() {
         console.log("Init payload:", { category: cat, level: levelStr, date });
         const p = await gameInit({ category: cat, level: levelStr, date });
         if (!dead) setPuzzle(p);
+        console.log(p);
       } catch (e) {
         if (!dead)
           setError(
@@ -90,7 +89,7 @@ export default function Start() {
       const lvl = safeText(initPayload?.level, "?");
       return `${cat} — Level ${lvl}`;
     }
-    if (puzzle?.puzzleId) return `Puzzle #${puzzle.puzzleId}`;
+    if (puzzle?.puzzleId) return `MaxScore #${puzzle.maxScore}`;
     return "Mystery Puzzle";
   }, [initPayload, puzzle]);
 
@@ -103,16 +102,17 @@ export default function Start() {
       Date: safeText(initPayload?.date),
       "Word Length": puzzle?.wordLength ?? "—",
       "Max Attempts": puzzle?.maxAttempts ?? "—",
-      Expires: puzzle?.expiresAt
-        ? new Date(puzzle.expiresAt).toLocaleString()
-        : "—",
-      "Puzzle ID": safeText(puzzle?.puzzleId),
+      // Expires: puzzle?.expiresAt
+      //   ? new Date(puzzle.expiresAt).toLocaleString()
+      //   : "—",
+      "Max Score": puzzle?.maxScore ?? "—", // 👈 show maxScore instead
     };
   }, [puzzle, initPayload]);
 
   const handleStart = () => {
     if (puzzle) {
       // Carry both along (useful in /play UI)
+      console.log(puzzle,initPayload);
       navigate("/play", { state: { puzzle, initPayload } });
     } else if (!initPayload) {
       navigate("/categories");
@@ -122,11 +122,6 @@ export default function Start() {
   const canStart = !!puzzle && !loading && !error;
 
   // Dev view: mask secret word if present
-  const maskedPuzzle = useMemo(() => {
-    if (!puzzle) return null;
-    const { word, ...rest } = puzzle || {};
-    return { ...rest, word: word ? "**** (hidden)" : word };
-  }, [puzzle]);
 
   return (
     <div className="min-h-screen w-full text-gray-100 px-6 py-8">
@@ -167,7 +162,9 @@ export default function Start() {
                   ? "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
                   : "bg-gray-700 cursor-not-allowed opacity-60",
               ].join(" ")}
-              title={canStart ? "Start Game" : loading ? "Preparing…" : "Not ready"}
+              title={
+                canStart ? "Start Game" : loading ? "Preparing…" : "Not ready"
+              }
             >
               {loading
                 ? "Preparing…"
@@ -238,20 +235,6 @@ export default function Start() {
                     </div>
                   ))}
                 </div>
-
-                {/* Optional raw view (dev) */}
-                <details className="mt-4 rounded-xl border border-gray-700/60 bg-white/5 p-3">
-                  <summary className="cursor-pointer text-sm text-gray-300">
-                    Show raw puzzle data (dev)
-                  </summary>
-                  <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-black/40 p-3 text-xs text-emerald-200">
-                    {JSON.stringify(
-                      maskedPuzzle ?? { note: "No puzzle" },
-                      null,
-                      2
-                    )}
-                  </pre>
-                </details>
               </>
             )}
           </Card>
@@ -266,10 +249,25 @@ export default function Start() {
               <li>
                 Type your guess each attempt—aim for the best score and level.
               </li>
-              <li>
-                Climb the leaderboard with consistent high scores.
-              </li>
+              <li>Climb the leaderboard with consistent high scores.</li>
             </ul>
+
+            <div className="mt-3 space-y-1.5 text-sm">
+              <p className="flex items-center">
+                <span className="w-4 h-4 bg-red-500 rounded-sm inline-block mr-2"></span>
+                <span className="text-gray-300">Red → Wrong letter</span>
+              </p>
+              <p className="flex items-center">
+                <span className="w-4 h-4 bg-green-500 rounded-sm inline-block mr-2"></span>
+                <span className="text-gray-300">Green → Correct letter</span>
+              </p>
+              <p className="flex items-center">
+                <span className="w-4 h-4 bg-yellow-400 rounded-sm inline-block mr-2"></span>
+                <span className="text-gray-300">
+                  Yellow → Correct letter but wrong position
+                </span>
+              </p>
+            </div>
 
             <div className="mt-4 rounded-xl border border-gray-700/60 bg-white/5 px-3 py-2">
               <div className="text-[11px] uppercase tracking-wider text-gray-400">
@@ -277,7 +275,7 @@ export default function Start() {
               </div>
               <div className="mt-0.5 text-gray-100">
                 Press <span className="font-semibold">Enter</span> to submit a
-                guess. Keep an eye on your time!
+                guess.
               </div>
             </div>
           </Card>
