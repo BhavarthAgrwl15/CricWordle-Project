@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import NavBar from "./components/NavBar";
+import NavBar from "./components/navbar";
 import Home from "./pages/home";
 import LoginPage from "./pages/login";
 import SignupPage from "./pages/signup";
@@ -22,7 +22,7 @@ function Layout() {
   return (
     <div
       className="min-h-screen bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: "url('/lords.jpg')" }}
+      style={{ backgroundImage: "url('/bg4.png')" }}
     >
       <div className="min-h-screen bg-black/60 flex flex-col">
         {!hideNavOn.includes(location.pathname) && <NavBar />}

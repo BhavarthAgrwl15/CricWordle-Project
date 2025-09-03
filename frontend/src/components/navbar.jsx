@@ -20,34 +20,41 @@ export default function NavBar() {
     }
   };
 
-  // ✅ Calculate streak
-  const streakCount = useMemo(() => {
-    if (!profile?.recentSessions?.length) return 0;
+ // ✅ Calculate streak (only counts if most recent session is today)
+const streakCount = useMemo(() => {
+  if (!profile?.recentSessions?.length) return 0;
 
-    const dates = [...new Set(profile.recentSessions.map((s) => s.date))].sort(
-      (a, b) => new Date(b) - new Date(a)
-    );
+  // Sort recent session dates (latest first)
+  const dates = [...new Set(profile.recentSessions.map((s) => s.date))].sort(
+    (a, b) => new Date(b) - new Date(a)
+  );
 
-    let streak = 0;
-    let today = new Date();
-    today.setHours(0, 0, 0, 0);
+  let today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-    for (let i = 0; i < dates.length; i++) {
-      const d = new Date(dates[i]);
-      d.setHours(0, 0, 0, 0);
+  let streak = 0;
 
-      if (d.getTime() === today.getTime()) {
-        streak++;
-        today.setDate(today.getDate() - 1);
-      } else if (d.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
-        streak++;
-        today.setDate(today.getDate() - 1);
-      } else {
-        break;
-      }
+  // First check: if latest date is not today → return 0 immediately
+  const mostRecent = new Date(dates[0]);
+  mostRecent.setHours(0, 0, 0, 0);
+  if (mostRecent.getTime() !== today.getTime()) return 0;
+
+  // Now count backwards day by day
+  for (let i = 0; i < dates.length; i++) {
+    const d = new Date(dates[i]);
+    d.setHours(0, 0, 0, 0);
+
+    if (d.getTime() === today.getTime()) {
+      streak++;
+      today.setDate(today.getDate() - 1); // go one day back
+    } else {
+      break;
     }
-    return streak;
-  }, [profile]);
+  }
+
+  return streak;
+}, [profile]);
+
 
   return (
     <nav className="bg-black/70 backdrop-blur sticky top-0 z-50 border-b border-gray-800">
@@ -58,7 +65,7 @@ export default function NavBar() {
             {/* rectangular rounded container that sizes by height; image keeps its aspect ratio */}
             <div className="h-12 md:h-16 rounded-xl overflow-hidden shadow-md transition-transform duration-300 group-hover:scale-105 bg-white/5">
               <img
-                src="/logo2.png" /* transparent PNG/SVG provided */
+                src="/logo3.png" /* transparent PNG/SVG provided */
                 alt="Cricket Wordle"
                 className="h-full w-auto block object-contain"
               />

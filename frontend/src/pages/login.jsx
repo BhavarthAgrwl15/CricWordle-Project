@@ -65,7 +65,7 @@ export default function LoginPage() {
         <div className="mb-6 text-center">
           <div className="text-4xl">🏏</div>
           <h1 className="mt-2 text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-gray-200 to-white bg-clip-text text-transparent drop-shadow">
-            Cricket Wordle
+            CricWordle
           </h1>
           <p className="text-sm text-gray-400 mt-1">Login to play the daily puzzle</p>
         </div>
@@ -81,12 +81,12 @@ export default function LoginPage() {
             </div>
           )}
 
-          <label className="block text-sm mb-1 text-gray-300">Email or Username</label>
+          <label className="block text-sm mb-1 text-gray-300">Email/Username</label>
           <input
             type="text"
             value={emailOrUsername}
             onChange={(e) => setEmailOrUsername(e.target.value.trim())}
-            placeholder="you@example.com or sachinfan"
+            placeholder="Enter Your Email/Username"
             autoComplete="username"
             className="w-full mb-4 px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
           />
@@ -97,7 +97,7 @@ export default function LoginPage() {
               type={showPwd ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
+              placeholder="•••••••••"
               autoComplete="current-password"
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 pr-12 placeholder-gray-400"
             />

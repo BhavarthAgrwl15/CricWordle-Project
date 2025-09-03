@@ -1,7 +1,7 @@
 // src/pages/About.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import Logo from "../assets/logo.png"; // ✅ update path if needed
+import Logo from "/logo3.png"; // ✅ update path if needed
 
 /* ---------- Reusable bits ---------- */
 function Pill({ children }) {

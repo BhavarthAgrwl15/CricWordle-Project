@@ -99,31 +99,41 @@ export default function Home() {
   }, []);
 
   // Compute streak from profile.recentSessions
-  const streakCount = useMemo(() => {
-    if (!profile?.recentSessions?.length) return 0;
-    const dates = [
-      ...new Set(profile.recentSessions.map((s) => (s.date ? s.date : s.createdAt ? s.createdAt : null))),
-    ]
-      .filter(Boolean)
-      .sort((a, b) => new Date(b) - new Date(a));
-    let streak = 0;
-    let today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < dates.length; i++) {
-      const d = new Date(dates[i]);
-      d.setHours(0, 0, 0, 0);
-      if (d.getTime() === today.getTime()) {
-        streak++;
-        today.setDate(today.getDate() - 1);
-      } else if (d.getTime() === today.getTime() - 24 * 60 * 60 * 1000) {
-        streak++;
-        today.setDate(today.getDate() - 1);
-      } else {
-        break;
-      }
+  // ✅ Calculate streak (only counts if most recent session is today)
+const streakCount = useMemo(() => {
+  if (!profile?.recentSessions?.length) return 0;
+
+  // Sort recent session dates (latest first)
+  const dates = [...new Set(profile.recentSessions.map((s) => s.date))].sort(
+    (a, b) => new Date(b) - new Date(a)
+  );
+
+  let today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+
+  // First check: if latest date is not today → return 0 immediately
+  const mostRecent = new Date(dates[0]);
+  mostRecent.setHours(0, 0, 0, 0);
+  if (mostRecent.getTime() !== today.getTime()) return 0;
+
+  // Now count backwards day by day
+  for (let i = 0; i < dates.length; i++) {
+    const d = new Date(dates[i]);
+    d.setHours(0, 0, 0, 0);
+
+    if (d.getTime() === today.getTime()) {
+      streak++;
+      today.setDate(today.getDate() - 1); // go one day back
+    } else {
+      break;
     }
-    return streak;
-  }, [profile]);
+  }
+
+  return streak;
+}, [profile]);
+
 
   // lastPlayed computed from profile.recentSessions
   const lastPlayedFromProfile = useMemo(() => {
@@ -164,9 +174,9 @@ return (
     <div className="max-w-6xl mx-auto">
       {/* Hero */}
       <header className="text-center mb-10">
-        <div className="text-4xl">🏏</div>
+        <div className="text-4xl ">🏏</div>
         <h1 className="mt-2 text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-gray-200 to-white bg-clip-text text-transparent drop-shadow-lg">
-          Welcome to Cricket Wordle
+          Welcome to Cric-Wordle
         </h1>
         <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mt-3">
           Guess the daily cricket word, keep your streak, and top the leaderboard.
@@ -175,8 +185,7 @@ return (
         <div className="mt-6 flex flex-wrap gap-4 justify-center">
           <Link
             to="/categories"
-            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold shadow-lg shadow-black/40 transition-all duration-300 transform hover:scale-105"
-          >
+              className="px-6 py-3 rounded-2xl bg-black-800 backdrop-blur-xl border border-gray-700/70 text-gray-100 font-semibold shadow-lg shadow-black/40 hover:bg-white/15 hover:border-gray-500/70 transition-all duration-300 transform hover:scale-105">
             Play Now
           </Link>
           <Link
@@ -223,7 +232,7 @@ return (
             title="Miss"
             tiles={[
               { ch: "G", state: "miss" },
-              { ch: "O", state: "incorrect" },
+              { ch: "A", state: "incorrect" },
               { ch: "O", state: "miss" },
               { ch: "G", state: "miss" },
               { ch: "L", state: "miss" },

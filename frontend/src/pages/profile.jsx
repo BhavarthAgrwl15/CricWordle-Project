@@ -84,6 +84,7 @@ function computeStreaks(sessions = []) {
 }
 
 function computeAggregates(sessions = []) {
+  console.log("computeAggregates sessions:", sessions);
   const total = sessions.length;
   const wins = sessions.filter((s) => s.finishedAt && (s.score ?? 0) > 0).length;
   const bestScore = total ? Math.max(...sessions.map((s) => s.score ?? 0)) : 0;

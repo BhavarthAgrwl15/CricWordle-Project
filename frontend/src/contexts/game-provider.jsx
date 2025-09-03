@@ -78,9 +78,9 @@ export const GameProvider = ({ children }) => {
    * - stores it in state + localStorage
    * - returns the profile or throws error from fetchProfile
    */
-  const loadProfile = useCallback(async (token) => {
+  const loadProfile = useCallback(async () => {
     try {
-      const userProfile = await fetchProfile(token || localStorage.getItem("token"));
+      const userProfile = await fetchProfile();
       if (userProfile) {
         setProfile(userProfile);
       } else {

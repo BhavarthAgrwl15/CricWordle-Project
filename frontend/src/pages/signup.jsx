@@ -91,7 +91,7 @@ export default function SignupPage() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Sachin Tendulkar"
+              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
           </div>
@@ -102,7 +102,7 @@ export default function SignupPage() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="sachinfan"
+              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
           </div>
@@ -114,7 +114,7 @@ export default function SignupPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
           </div>
@@ -127,7 +127,7 @@ export default function SignupPage() {
                 type={showPwd ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••"
+                placeholder=""
                 className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 pr-12 placeholder-gray-400"
               />
               <button
@@ -152,7 +152,7 @@ export default function SignupPage() {
               type={showPwd ? "text" : "password"}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••"
+              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
             {confirm && confirm !== password && (

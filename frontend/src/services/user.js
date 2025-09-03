@@ -1,6 +1,7 @@
 // src/services/user.js
 import axios from "axios";
-import { AUTH_API, PROFILE_API } from "./api"; // must include AUTH_API.ME, AUTH_API.LOGIN, AUTH_API.REGISTER, AUTH_API.LOGOUT
+import { AUTH_API, PROFILE_API } from "./api"; // must include AUTH_API.ME, AUTH_API.LOGIN, AUTH_API.REGISTER, AUTH_API.
+
 
 // Helper to normalize axios errors into Error with message
 function axiosErrorToError(err) {
@@ -23,36 +24,45 @@ function axiosErrorToError(err) {
  * @param {string} [token]
  * @returns {Promise<Object>} user object (with recentSessions field if provided)
  */
-export async function fetchProfile(token) {
-  const t = token || localStorage.getItem("token");
-  if (!t) throw new Error("No auth token available");
-  console.log(PROFILE_API.ME,token);
-  try {
-    const res = await axios.get(PROFILE_API.ME, {
-      headers: {
-        Authorization: `Bearer ${t}`,
-        Accept: "application/json",
-      },
-    });
+// export async function fetchProfile(token) {
+//   const t = token || localStorage.getItem("token");
+//   if (!t) throw new Error("No auth token available");
+//   console.log(PROFILE_API.ME,token);
+//   try {
+//     const res = await axios.get(PROFILE_API.ME, {
+//       headers: {
+//         Authorization: `Bearer ${t}`,
+//         Accept: "application/json",
+//       },
+//     });
 
-    // res.data expected to be { user, recentSessions }
-    const payload = res.data ?? {};
-    const userObj = payload.user ?? payload;
-    const recentSessions = payload.recentSessions ?? [];
+//     // res.data expected to be { user, recentSessions }
+//     const payload = res.data ?? {};
+//     const userObj = payload.user ?? payload;
+//     const recentSessions = payload.recentSessions ?? [];
 
-    // Flatten so caller gets user fields directly and can access recentSessions via user.recentSessions
-    if (typeof userObj === "object" && userObj !== null) {
-      return { ...userObj, recentSessions };
-    }
+//     // Flatten so caller gets user fields directly and can access recentSessions via user.recentSessions
+//     if (typeof userObj === "object" && userObj !== null) {
+//       return { ...userObj, recentSessions };
+//     }
 
-    // fallback: return what backend returned
-    return payload;
-  } catch (err) {
-    throw axiosErrorToError(err);
-  }
-}
+//     // fallback: return what backend returned
+//     return payload;
+//   } catch (err) {
+//     throw axiosErrorToError(err);
+//   }
+// }
 
 // LOGIN
+const getAuthHeader = () => {
+  const token = localStorage.getItem("token");
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
+export const fetchProfile = async () => {
+  const res = await axios.get(PROFILE_API.ME, getAuthHeader());
+  return res.data; // backend should return full user profile
+};
+
 export const loginUser = async ({ emailOrUsername, password }) => {
   try {
     const res = await axios.post(AUTH_API.LOGIN, { emailOrUsername, password });

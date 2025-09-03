@@ -1,6 +1,7 @@
 import axios from "axios";
 import { GAME_API, PROFILE_API } from "./api";
 
+
 const getAuthHeader = () => {
   const token = localStorage.getItem("token");
   return { headers: { Authorization: `Bearer ${token}` } };
@@ -54,6 +55,7 @@ export const finishPuzzle = async ({ puzzleId,result, score }) => {
       getAuthHeader()
     );
     // Backend returns: { success, score, maxScore }
+
     return res.data;
   } catch (err) {
     throw err.response?.data || { msg: "Failed to finish puzzle" };
