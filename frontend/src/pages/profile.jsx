@@ -1,7 +1,6 @@
 // Profile.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-// Adjust this import to your actual hook location:
 import { useGame } from "../contexts/game-context";
 
 /* ------------------------- UI Primitives ------------------------- */
@@ -18,15 +17,19 @@ function Card({ className = "", children }) {
     </div>
   );
 }
+
 function Stat({ label, value, sub }) {
   return (
-    <div className="rounded-xl border border-gray-700/60 bg-white/5 p-4">
-      <div className="text-[11px] uppercase tracking-wider text-gray-400">{label}</div>
+    <div className="rounded-xl border border-gray-700/60 bg-white/5 backdrop-blur-xl p-4 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.5)]">
+      <div className="text-[11px] uppercase tracking-wider text-gray-400">
+        {label}
+      </div>
       <div className="mt-1 text-2xl font-extrabold text-white">{value}</div>
       {sub ? <div className="mt-1 text-xs text-gray-400">{sub}</div> : null}
     </div>
   );
 }
+
 function Pill({ children, active, onClick }) {
   return (
     <button
@@ -50,49 +53,66 @@ const fmtSec = (s) => {
   const sec = s % 60;
   return m ? `${m}m ${sec}s` : `${sec}s`;
 };
-const byDateDesc = (a, b) => (a?.date > b?.date ? -1 : a?.date < b?.date ? 1 : 0);
-const sameDay = (a, b) => a && b && a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+const byDateDesc = (a, b) =>
+  a?.date > b?.date ? -1 : a?.date < b?.date ? 1 : 0;
 
-function computeStreaks(sessions = []) {
-  if (!sessions.length) return { current: 0, best: 0 };
-  const byDay = new Map();
+// NOTE: sameDay helper kept if needed later
+const sameDay = (a, b) =>
+  a && b && a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+
+/**
+ * computePlayStreaks(sessions)
+ * - longest and current consecutive-days-played (irrespective of win)
+ */
+function computePlayStreaks(sessions = []) {
+  const daysSet = new Set();
   for (const s of sessions) {
     const day = (s.date || "").slice(0, 10);
-    if (!day) continue;
-    const win = (s.score ?? 0) > 0;
-    byDay.set(day, (byDay.get(day) ?? false) || win);
+    if (day) daysSet.add(day);
   }
-  const days = Array.from(byDay.keys()).sort().reverse();
-  let best = 0,
-    cur = 0,
-    lastDay = null;
-  for (const d of days) {
-    const dt = new Date(d + "T00:00:00Z");
-    if (byDay.get(d)) {
-      if (!lastDay) cur = 1;
-      else cur = Math.round((lastDay - dt) / 86400000) === 1 ? cur + 1 : 1;
-      best = Math.max(best, cur);
-    } else cur = 0;
-    lastDay = dt;
+  const days = Array.from(daysSet);
+  if (days.length === 0) return { current: 0, best: 0 };
+
+  const dayNums = days
+    .map((d) => new Date(d + "T00:00:00Z").getTime())
+    .sort((a, b) => a - b);
+
+  let best = 0;
+  let cur = 0;
+  let last = null;
+  for (const t of dayNums) {
+    if (last === null) cur = 1;
+    else if (t - last === 86400000) cur += 1;
+    else cur = 1;
+    best = Math.max(best, cur);
+    last = t;
   }
-  const today = new Date();
-  const lastPlayed = days.length ? new Date(days[0] + "T00:00:00Z") : null;
-  const ok =
-    lastPlayed &&
-    (sameDay(lastPlayed, today) || Math.round((today - lastPlayed) / 86400000) === 1);
-  return { current: ok ? cur : 0, best };
+
+  const setNums = new Set(dayNums);
+  let current = 0;
+  let t = dayNums[dayNums.length - 1];
+  while (setNums.has(t)) {
+    current += 1;
+    t -= 86400000;
+  }
+  return { current, best };
 }
 
 function computeAggregates(sessions = []) {
-  console.log("computeAggregates sessions:", sessions);
   const total = sessions.length;
-  const wins = sessions.filter((s) => s.finishedAt && (s.score ?? 0) > 0).length;
+  const wins = sessions.filter(
+    (s) => s.finishedAt && (s.score ?? 0) > 0
+  ).length;
   const bestScore = total ? Math.max(...sessions.map((s) => s.score ?? 0)) : 0;
   const avgScore = total
-    ? Math.round((sessions.reduce((a, s) => a + (s.score ?? 0), 0) / total) * 10) / 10
+    ? Math.round(
+        (sessions.reduce((a, s) => a + (s.score ?? 0), 0) / total) * 10
+      ) / 10
     : 0;
   const avgTime = total
-    ? Math.round(sessions.reduce((a, s) => a + (s.timeTakenSec ?? 0), 0) / total)
+    ? Math.round(
+        sessions.reduce((a, s) => a + (s.timeTakenSec ?? 0), 0) / total
+      )
     : 0;
 
   const categories = sessions.reduce((m, s) => {
@@ -103,7 +123,6 @@ function computeAggregates(sessions = []) {
 
   const winRate = total ? Math.round((wins / total) * 100) : 0;
 
-  // attempts -> treat arrays as counts
   const attemptsList = sessions
     .map((s) => {
       if ("attempts" in s) {
@@ -114,15 +133,25 @@ function computeAggregates(sessions = []) {
       return null;
     })
     .filter((x) => typeof x === "number");
-  const avgGuesses =
-    attemptsList.length
-      ? Math.round(
-          (attemptsList.reduce((a, b) => a + b, 0) / attemptsList.length) * 10
-        ) / 10
-      : null;
 
-  const streaks = computeStreaks(sessions);
-  return { total, wins, winRate, bestScore, avgScore, avgTime, categories, avgGuesses, streaks };
+  const avgGuesses = attemptsList.length
+    ? Math.round(
+        (attemptsList.reduce((a, b) => a + b, 0) / attemptsList.length) * 10
+      ) / 10
+    : null;
+
+  const streaks = computePlayStreaks(sessions);
+  return {
+    total,
+    wins,
+    winRate,
+    bestScore,
+    avgScore,
+    avgTime,
+    categories,
+    avgGuesses,
+    streaks,
+  };
 }
 
 /* ------------------------- Visual bits ------------------------- */
@@ -137,8 +166,10 @@ function Achievement({ title, desc, icon }) {
     </div>
   );
 }
+
 function Sparkline({ values = [], max = 10, height = 48 }) {
-  if (!values.length) return <div className="mt-1 h-12 text-sm text-gray-400">No data yet.</div>;
+  if (!values.length)
+    return <div className="mt-1 h-12 text-sm text-gray-400">No data yet.</div>;
   const w = Math.max(120, values.length * 24);
   const h = height;
   const maxVal = Math.max(1, max);
@@ -159,17 +190,49 @@ function Sparkline({ values = [], max = 10, height = 48 }) {
         points={points}
         className="text-emerald-300"
       />
-      <line x1="4" y1={h - 6} x2={w - 4} y2={h - 6} className="stroke-gray-700/60" strokeWidth="1" />
+      <line
+        x1="4"
+        y1={h - 6}
+        x2={w - 4}
+        y2={h - 6}
+        className="stroke-gray-700/60"
+        strokeWidth="1"
+      />
     </svg>
   );
 }
 
-/* ---------- Category Donut ---------- */
+/* ---------- Donut math helpers ---------- */
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+function arcPath(cx, cy, rOuter, rInner, startAngle, endAngle) {
+  const largeArc = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
+
+  const p1 = polarToCartesian(cx, cy, rOuter, endAngle);
+  const p2 = polarToCartesian(cx, cy, rOuter, startAngle);
+  const p3 = polarToCartesian(cx, cy, rInner, startAngle);
+  const p4 = polarToCartesian(cx, cy, rInner, endAngle);
+
+  return [
+    `M ${p1.x} ${p1.y}`,
+    `A ${rOuter} ${rOuter} 0 ${largeArc} 0 ${p2.x} ${p2.y}`,
+    `L ${p3.x} ${p3.y}`,
+    `A ${rInner} ${rInner} 0 ${largeArc} 1 ${p4.x} ${p4.y}`,
+    "Z",
+  ].join(" ");
+}
+
+/* ---------- Interactive Category Donut ---------- */
 function CategoryDonut({ categories = {} }) {
   const entries = Object.entries(categories)
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1]);
+
   const total = entries.reduce((a, [, n]) => a + n, 0);
+
+  // Tailwind-friendly palette (emerald/cyan/blue/violet/pink/amber/orange)
   const palette = [
     "#34d399",
     "#10b981",
@@ -180,68 +243,171 @@ function CategoryDonut({ categories = {} }) {
     "#f59e0b",
     "#f97316",
   ];
-  const r = 44; // radius
-  const C = 2 * Math.PI * r; // circumference
-  let acc = 0;
+
+  const [hoverIdx, setHoverIdx] = useState(null);
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  const wrapRef = useRef(null);
+
+  // SVG dimensions
+  const size = 200;
+  const cx = size / 2;
+  const cy = size / 2;
+  const rOuter = 78;
+  const rInner = 48;
+
+  // Build arcs
+  let acc = -90; // start at 12 o'clock
+  const arcs = entries.map(([label, n], i) => {
+    const frac = total ? n / total : 0;
+    const sweep = frac * 360;
+    const startAngle = acc;
+    const endAngle = acc + sweep;
+    acc += sweep;
+    const midAngle = (startAngle + endAngle) / 2;
+    return {
+      label,
+      n,
+      frac,
+      startAngle,
+      endAngle,
+      midAngle,
+      color: palette[i % palette.length],
+      i,
+    };
+  });
+
+  const hovered = hoverIdx != null ? arcs[hoverIdx] : null;
+
+  const handleMove = (e) => {
+    if (!wrapRef.current) return;
+    const rect = wrapRef.current.getBoundingClientRect();
+    setMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
 
   return (
-    <div className="flex flex-col md:flex-row gap-5 items-center">
-      <svg width="120" height="120" viewBox="0 0 120 120" className="shrink-0">
-        <g transform="translate(60,60)">
-          <circle r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="14" />
-          {entries.map(([label, n], i) => {
-            const frac = total ? n / total : 0;
-            const len = frac * C;
-            const dashOffset = C - acc - len;
-            acc += len;
-            return (
-              <circle
-                key={label}
-                r={r}
-                fill="none"
-                stroke={palette[i % palette.length]}
-                strokeWidth="14"
-                strokeDasharray={`${len} ${C - len}`}
-                strokeDashoffset={dashOffset}
-                transform="rotate(-90)"
-              />
-            );
-          })}
+    <div
+      ref={wrapRef}
+      className="relative flex flex-col md:flex-row gap-5 items-center"
+      onMouseMove={handleMove}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+        {/* Base ring */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={(rOuter + rInner) / 2}
+          fill="none"
+          stroke="rgba(255,255,255,.06)"
+          strokeWidth={rOuter - rInner}
+        />
+
+        {/* Slices */}
+        {arcs.map((a) => {
+          const path = arcPath(
+            cx,
+            cy,
+            rOuter + (hoverIdx === a.i ? 2 : 0),
+            rInner - (hoverIdx === a.i ? 2 : 0),
+            a.startAngle,
+            a.endAngle
+          );
+          return (
+            <path
+              key={a.label}
+              d={path}
+              fill={a.color}
+              opacity={hoverIdx == null || hoverIdx === a.i ? 0.95 : 0.35}
+              className="transition-all duration-200 cursor-pointer"
+              onMouseEnter={() => setHoverIdx(a.i)}
+              onMouseLeave={() => setHoverIdx(null)}
+            />
+          );
+        })}
+
+        {/* Center readout */}
+        <g>
+          <circle cx={cx} cy={cy} r={rInner - 10} fill="rgba(255,255,255,0.04)" />
+          <text
+            x={cx}
+            y={cy - 6}
+            textAnchor="middle"
+            className="fill-gray-200"
+            style={{ fontSize: 14, fontWeight: 700 }}
+          >
+            {hovered ? hovered.label : "Categories"}
+          </text>
+          <text
+            x={cx}
+            y={cy + 12}
+            textAnchor="middle"
+            className="fill-gray-400"
+            style={{ fontSize: 12 }}
+          >
+            {total === 0
+              ? "No data"
+              : hovered
+              ? `${hovered.n} • ${Math.round(hovered.frac * 100)}%`
+              : `${total} plays`}
+          </text>
         </g>
       </svg>
 
+      {/* Legend */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 w-full">
         {entries.length === 0 ? (
           <div className="text-gray-400 text-sm">No category data yet.</div>
         ) : (
           entries.map(([label, n], i) => {
             const pct = total ? Math.round((n / total) * 100) : 0;
+            const active = hoverIdx === i;
             return (
-              <div key={label} className="flex items-center gap-3">
-                <span className="h-3 w-3 rounded-sm" style={{ background: palette[i % palette.length] }} />
+              <button
+                key={label}
+                onMouseEnter={() => setHoverIdx(i)}
+                onMouseLeave={() => setHoverIdx(null)}
+                className={[
+                  "group flex items-center gap-3 rounded-md px-2 py-1 text-left transition-colors",
+                  active ? "bg-white/5" : "hover:bg-white/5",
+                ].join(" ")}
+              >
+                <span
+                  className="h-3 w-3 rounded-sm ring-1 ring-white/20"
+                  style={{ background: palette[i % palette.length] }}
+                />
                 <div className="flex-1 text-gray-200 text-sm truncate">{label}</div>
-                <div className="text-gray-400 text-xs">
+                <div className="text-gray-400 text-xs tabular-nums">
                   {n} • {pct}%
                 </div>
-              </div>
+              </button>
             );
           })
         )}
       </div>
+
+      {/* Floating tooltip */}
+      {hovered && (
+        <div
+          className="pointer-events-none absolute z-10 rounded-lg border border-gray-700/60 bg-black/80 px-3 py-2 text-xs text-gray-100 shadow-xl backdrop-blur"
+          style={{
+            left: Math.min(mouse.x + 16, (wrapRef.current?.clientWidth || 0) - 140),
+            top: Math.max(mouse.y - 10, 0),
+            width: 140,
+          }}
+        >
+          <div className="font-semibold">{hovered.label}</div>
+          <div className="text-gray-300">{hovered.n} plays</div>
+          <div className="text-gray-400">{Math.round(hovered.frac * 100)}%</div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ------------------------- Main ------------------------- */
-/**
- * Profile uses const { profile } = useGame();
- * - Expects profile = { user, recentSessions }
- */
 export default function Profile() {
-  const { profile } = useGame(); // pulls from your game-context
-  const [tab, setTab] = useState("overview"); // overview | achievements | history
+  const { profile } = useGame();
+  const [tab, setTab] = useState("overview"); // overview | history
 
-  // derive user + sorted sessions from profile (reactive)
   const user = profile?.user ?? null;
   const sessions = useMemo(
     () =>
@@ -252,8 +418,10 @@ export default function Profile() {
   );
 
   const stats = useMemo(() => computeAggregates(sessions), [sessions]);
-  const sparkScores = sessions.slice().reverse().map((s) => s.score ?? 0);
-  const sparkTimes = sessions.slice().reverse().map((s) => s.timeTakenSec ?? 0);
+  const sparkScores = sessions
+    .slice()
+    .reverse()
+    .map((s) => s.score ?? 0);
 
   const initials =
     (user?.name || "Y")
@@ -263,7 +431,9 @@ export default function Profile() {
       .join("") || "Y";
   const city = user?.city || user?.location || "—";
   const country = user?.country ? `, ${user.country}` : "";
-  const memberSince = user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : null;
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString()
+    : null;
 
   return (
     <div className="min-h-screen w-full text-gray-100 px-6 py-8">
@@ -281,11 +451,6 @@ export default function Profile() {
                   <h1 className="text-2xl md:text-3xl font-extrabold">
                     {user?.name || "Your Profile"}
                   </h1>
-                  {user?.rankGlobal && (
-                    <span className="text-xs px-2 py-1 rounded-full border border-amber-400/40 bg-amber-400/10 text-amber-200">
-                      ★ Rank #{user.rankGlobal} Globally
-                    </span>
-                  )}
                 </div>
                 <div className="mt-1 text-sm text-gray-300 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span>📍 {city}{country}</span>
@@ -296,10 +461,26 @@ export default function Profile() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:max-w-[560px]">
-              <Stat label="Total Score" value={(user?.totalPoints ?? stats.wins * 100) || 0} sub="points" />
-              <Stat label="Win Rate" value={`${stats.winRate}%`} sub={`${stats.wins} wins`} />
-              <Stat label="Current Streak" value={stats.streaks.current} sub={`Best: ${stats.streaks.best}`} />
-              <Stat label="Avg Guesses" value={stats.avgGuesses ?? "—"} sub="per game" />
+              <Stat
+                label="Total Score"
+                value={(user?.totalPoints ?? stats.wins * 100) || 0}
+                sub="points"
+              />
+              <Stat
+                label="Win Rate"
+                value={`${stats.winRate}%`}
+                sub={`${stats.wins} wins`}
+              />
+              <Stat
+                label="Current Streak"
+                value={stats.streaks.current}
+                sub={`Best: ${stats.streaks.best}`}
+              />
+              <Stat
+                label="Avg Guesses"
+                value={stats.avgGuesses ?? "—"}
+                sub="per game"
+              />
             </div>
           </div>
 
@@ -308,16 +489,13 @@ export default function Profile() {
             <Pill active={tab === "overview"} onClick={() => setTab("overview")}>
               Overview
             </Pill>
-            <Pill active={tab === "achievements"} onClick={() => setTab("achievements")}>
-              Achievements
-            </Pill>
             <Pill active={tab === "history"} onClick={() => setTab("history")}>
               Game History
             </Pill>
           </div>
         </Card>
 
-        {/* If profile is not yet loaded, show message */}
+        {/* Loading */}
         {!profile && (
           <div className="grid place-items-center py-20 text-gray-400">
             Loading profile from game context…
@@ -371,63 +549,12 @@ export default function Profile() {
                       <div className="text-xs text-gray-400 mb-1">Scores</div>
                       <Sparkline values={sparkScores} max={Math.max(10, ...sparkScores)} />
                     </div>
-                    <div className="mt-5">
-                      <div className="text-xs text-gray-400 mb-1">Time (seconds)</div>
-                      <Sparkline values={sparkTimes} max={Math.max(60, ...sparkTimes)} />
-                    </div>
                   </Card>
 
                   <Card className="lg:col-span-1">
                     <h3 className="text-lg font-semibold">🧭 Category Performance</h3>
                     <div className="mt-4">
                       <CategoryDonut categories={stats.categories} />
-                    </div>
-                  </Card>
-                </section>
-
-                {/* Recent sessions */}
-                <section className="mt-6">
-                  <Card>
-                    <h3 className="text-lg font-semibold">📋 Match Log</h3>
-                    <div className="mt-3 overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-gray-400">
-                            <th className="py-2 pr-4">Date</th>
-                            <th className="py-2 pr-4">Category</th>
-                            <th className="py-2 pr-4">Level</th>
-                            <th className="py-2 pr-4">Score</th>
-                            <th className="py-2 pr-4">Time</th>
-                            <th className="py-2 pr-4">Result</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sessions.length === 0 ? (
-                            <tr>
-                              <td colSpan={6} className="py-6 text-center text-gray-400">
-                                No games yet — take guard and face your first ball!
-                              </td>
-                            </tr>
-                          ) : (
-                            sessions.map((s) => (
-                              <tr key={s._id} className="border-t border-gray-700/60">
-                                <td className="py-2 pr-4 text-gray-200">{s.date}</td>
-                                <td className="py-2 pr-4 text-gray-300">{s.category || "—"}</td>
-                                <td className="py-2 pr-4">{s.level ?? "—"}</td>
-                                <td className="py-2 pr-4 font-semibold text-gray-100">{s.score ?? 0}</td>
-                                <td className="py-2 pr-4">{fmtSec(s.timeTakenSec)}</td>
-                                <td
-                                  className={`py-2 pr-4 ${
-                                    s.score > 0 ? "text-emerald-400" : "text-rose-400"
-                                  }`}
-                                >
-                                  {s.score > 0 ? "Not Out" : "Out"}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
                     </div>
                   </Card>
                 </section>
@@ -449,33 +576,11 @@ export default function Profile() {
               </>
             )}
 
-            {/* -------- ACHIEVEMENTS -------- */}
-            {tab === "achievements" && (
-              <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Achievement title="Debut" desc="Played your first game" icon="/trophies/debut.png" />
-                {stats.total >= 10 && (
-                  <Achievement title="Ironman" desc="Played 10+ innings" icon="/trophies/ironman.png" />
-                )}
-                {stats.winRate >= 70 && (
-                  <Achievement title="Sharpshooter" desc="70%+ win rate" icon="/trophies/sharpshooter.png" />
-                )}
-                {stats.bestScore >= 50 && (
-                  <Achievement title="Half-Century" desc="Scored 50+ in one go" icon="/trophies/halfcentury.png" />
-                )}
-                {Object.keys(stats.categories).length >= 3 && (
-                  <Achievement title="All-Rounder" desc="Tackled 3+ categories" icon="/trophies/allrounder.png" />
-                )}
-                {stats.streaks.best >= 10 && (
-                  <Achievement title="On Fire" desc="10-day best streak" icon="/trophies/streak.png" />
-                )}
-              </section>
-            )}
-
-            {/* -------- GAME HISTORY -------- */}
+            {/* -------- HISTORY -------- */}
             {tab === "history" && (
               <section>
                 <Card>
-                  <h3 className="text-lg font-semibold">Game History</h3>
+                  <h3 className="text-lg font-semibold">📋 Match Log</h3>
                   <div className="mt-3 overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
@@ -483,9 +588,9 @@ export default function Profile() {
                           <th className="py-2 pr-4">Date</th>
                           <th className="py-2 pr-4">Category</th>
                           <th className="py-2 pr-4">Level</th>
-                          <th className="py-2 pr-4">Guesses</th>
                           <th className="py-2 pr-4">Score</th>
                           <th className="py-2 pr-4">Time</th>
+                          <th className="py-2 pr-4">Result</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -496,28 +601,22 @@ export default function Profile() {
                             </td>
                           </tr>
                         ) : (
-                          sessions.map((s) => {
-                            const guesses =
-                              "attempts" in s
-                                ? Array.isArray(s.attempts)
-                                  ? s.attempts.length
-                                  : typeof s.attempts === "number"
-                                  ? s.attempts
-                                  : "—"
-                                : "attemptsCount" in s
-                                ? s.attemptsCount
-                                : "—";
-                            return (
-                              <tr key={s._id} className="border-t border-gray-700/60">
-                                <td className="py-2 pr-4 text-gray-200">{s.date}</td>
-                                <td className="py-2 pr-4 text-gray-300">{s.category || "—"}</td>
-                                <td className="py-2 pr-4">{s.level ?? "—"}</td>
-                                <td className="py-2 pr-4">{guesses}</td>
-                                <td className="py-2 pr-4 font-semibold text-gray-100">{s.score ?? 0}</td>
-                                <td className="py-2 pr-4">{fmtSec(s.timeTakenSec)}</td>
-                              </tr>
-                            );
-                          })
+                          sessions.map((s) => (
+                            <tr key={s._id} className="border-t border-gray-700/60">
+                              <td className="py-2 pr-4 text-gray-200">{s.date}</td>
+                              <td className="py-2 pr-4 text-gray-300">{s.category || "—"}</td>
+                              <td className="py-2 pr-4">{s.level ?? "—"}</td>
+                              <td className="py-2 pr-4 font-semibold text-gray-100">{s.score ?? 0}</td>
+                              <td className="py-2 pr-4">{fmtSec(s.timeTakenSec)}</td>
+                              <td
+                                className={`py-2 pr-4 ${
+                                  (s.score ?? 0) > 0 ? "text-emerald-400" : "text-rose-400"
+                                }`}
+                              >
+                                {(s.score ?? 0) > 0 ? "Not Out" : "Out"}
+                              </td>
+                            </tr>
+                          ))
                         )}
                       </tbody>
                     </table>
