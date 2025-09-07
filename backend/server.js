@@ -12,7 +12,8 @@ const authRoutes = require("./routes/user-routes");
 const dailyWordRoutes = require("./routes/admin-routes");
 const wordRoutes=require("./routes/word-route")
 const profileRoutes=require("./routes/profile-routes")
-
+const authMiddleware = require("./middleware/auth");
+const adminMiddleware=require("./middleware/admin")
 const cors = require("cors"); //study
 
 app.use(
@@ -36,7 +37,7 @@ app.use("/api/categories", wordRoutes);
 app.use("/api/profile", profileRoutes);
 
 //admin routes
-app.use("/api/admin", dailyWordRoutes);
+app.use("/api/admin", authMiddleware, adminMiddleware, dailyWordRoutes);
 
 mongoose.connect(process.env.DBURL).then(()=>{
     console.log("Database connected successfully");

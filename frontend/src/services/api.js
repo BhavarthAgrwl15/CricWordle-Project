@@ -22,3 +22,10 @@ export const PROFILE_API={
    //new
 
 }
+
+export const ADMIN_API={
+  CATEGORY: `${API_BASE}/admin/categories`,
+   SEED: `${API_BASE}/admin/seed`,
+  DEL_CATEGORY: `${API_BASE}/admin/category`,
+  DAILY_WORDS_LIST:`${API_BASE}/admin/category`
+}

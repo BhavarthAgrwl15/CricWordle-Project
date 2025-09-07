@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signupUser } from "../services/user";
-//ADD RECAPTCHA TOO IF POSSIBLE
-// SIGN UP PAGE (React + Tailwind)
-// Expects backend: POST /api/auth/register { name, username, email, password }
-// Password validation: at least 6 characters and must contain a number
-
 
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -17,6 +12,8 @@ function validatePassword(pw) {
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [role, setRole] = useState("player"); // "player" | "admin"
+
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -45,8 +42,14 @@ export default function SignupPage() {
     if (!canSubmit) return;
     try {
       setLoading(true);
-      const data = await signupUser({ name, username, email, password });
-      setOk("Account created successfully! Redirecting to login..."+data);
+      const data = await signupUser({
+        name,
+        username,
+        email,
+        password,
+        isAdmin: role === "admin", // ✅ pass role
+      });
+      setOk("Account created successfully! Redirecting to login...");
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       setError(err.message || "Something went wrong");
@@ -67,6 +70,32 @@ export default function SignupPage() {
           <p className="text-sm text-gray-400 mt-1">
             Play the daily Cricket Wordle
           </p>
+        </div>
+
+        {/* Role selector */}
+        <div className="flex mb-4 rounded-xl overflow-hidden border border-gray-700/70 bg-white/10">
+          <button
+            type="button"
+            onClick={() => setRole("player")}
+            className={`flex-1 py-2 font-semibold ${
+              role === "player"
+                ? "bg-gray-800 text-white"
+                : "bg-transparent text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Player Signup
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole("admin")}
+            className={`flex-1 py-2 font-semibold ${
+              role === "admin"
+                ? "bg-gray-800 text-white"
+                : "bg-transparent text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Admin Signup
+          </button>
         </div>
 
         {/* Frosted translucent card */}
@@ -91,7 +120,6 @@ export default function SignupPage() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
           </div>
@@ -102,7 +130,6 @@ export default function SignupPage() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
           </div>
@@ -114,7 +141,6 @@ export default function SignupPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
           </div>
@@ -127,7 +153,6 @@ export default function SignupPage() {
                 type={showPwd ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder=""
                 className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 pr-12 placeholder-gray-400"
               />
               <button
@@ -152,7 +177,6 @@ export default function SignupPage() {
               type={showPwd ? "text" : "password"}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              placeholder=""
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 placeholder-gray-400"
             />
             {confirm && confirm !== password && (
@@ -170,19 +194,11 @@ export default function SignupPage() {
             />
             <span>
               I agree to the{" "}
-              <a
-                className="underline hover:text-gray-200"
-                href="#"
-                onClick={(e) => e.preventDefault()}
-              >
+              <a className="underline hover:text-gray-200" href="#">
                 Terms
               </a>{" "}
               &{" "}
-              <a
-                className="underline hover:text-gray-200"
-                href="#"
-                onClick={(e) => e.preventDefault()}
-              >
+              <a className="underline hover:text-gray-200" href="#">
                 Privacy Policy
               </a>.
             </span>
@@ -194,7 +210,7 @@ export default function SignupPage() {
             disabled={!canSubmit}
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 disabled:opacity-60 font-semibold shadow-lg shadow-black/40 transition-transform duration-200 hover:scale-[1.01]"
           >
-            {loading ? "Creating…" : "Create account"}
+            {loading ? "Creating…" : `Create ${role} account`}
           </button>
 
           {/* Already have account */}

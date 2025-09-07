@@ -453,7 +453,6 @@ export default function Profile() {
                   </h1>
                 </div>
                 <div className="mt-1 text-sm text-gray-300 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span>📍 {city}{country}</span>
                   {memberSince && <span>• Joined {memberSince}</span>}
                   {user?.username && <span>• @{user.username}</span>}
                 </div>

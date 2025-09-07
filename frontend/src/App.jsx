@@ -13,11 +13,12 @@ import Matrix from "./components/matrix";
 import Leaderboard from "./pages/leaderboard";
 import Profile from "./pages/profile";
 import Start from "./pages/game";
-import { Toaster } from "react-hot-toast"; // ✅ import Toaster
+import { Toaster } from "react-hot-toast";
+import AdminDashboard from "./pages/admin-dashboard";
 
 function Layout() {
   const location = useLocation();
-  const hideNavOn = ["/play"]; // 👈 all routes where NavBar should be hidden
+  const hideNavOn = ["/play"]; // hide NavBar on these pages
 
   return (
     <div
@@ -49,7 +50,7 @@ function Layout() {
               }
             />
 
-            {/* Private pages */}
+            {/* Private pages (normal users only) */}
             <Route
               path="/play"
               element={
@@ -91,28 +92,35 @@ function Layout() {
               }
             />
 
+            {/* Admin-only route */}
+            <Route
+              path="/admin"
+              element={
+                <PrivateRoute requireAdmin>
+                  <AdminDashboard />
+                </PrivateRoute>
+              }
+            />
+
             {/* Home */}
             <Route
               path="/"
               element={
-                <GuestRoute>
+           
                   <Home />
-                </GuestRoute>
+              
               }
             />
           </Routes>
         </main>
       </div>
 
-      {/* ✅ Global toaster (mounted once) */}
+      {/* Global toaster */}
       <Toaster
         position="top-center"
         toastOptions={{
           duration: 2000,
-          style: {
-            background: "#333",
-            color: "#fff",
-          },
+          style: { background: "#333", color: "#fff" },
         }}
       />
     </div>

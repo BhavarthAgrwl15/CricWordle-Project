@@ -1,4 +1,3 @@
-// src/components/NavBar.jsx
 import React, { useContext, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/auth-context";
@@ -20,52 +19,42 @@ export default function NavBar() {
     }
   };
 
- // ✅ Calculate streak (only counts if most recent session is today)
-const streakCount = useMemo(() => {
-  if (!profile?.recentSessions?.length) return 0;
+  // Calculate streak (only counts if most recent session is today)
+  const streakCount = useMemo(() => {
+    if (!profile?.recentSessions?.length) return 0;
+    const dates = [...new Set(profile.recentSessions.map((s) => s.date))].sort(
+      (a, b) => new Date(b) - new Date(a)
+    );
 
-  // Sort recent session dates (latest first)
-  const dates = [...new Set(profile.recentSessions.map((s) => s.date))].sort(
-    (a, b) => new Date(b) - new Date(a)
-  );
+    let today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  let today = new Date();
-  today.setHours(0, 0, 0, 0);
+    let streak = 0;
+    const mostRecent = new Date(dates[0]);
+    mostRecent.setHours(0, 0, 0, 0);
+    if (mostRecent.getTime() !== today.getTime()) return 0;
 
-  let streak = 0;
-
-  // First check: if latest date is not today → return 0 immediately
-  const mostRecent = new Date(dates[0]);
-  mostRecent.setHours(0, 0, 0, 0);
-  if (mostRecent.getTime() !== today.getTime()) return 0;
-
-  // Now count backwards day by day
-  for (let i = 0; i < dates.length; i++) {
-    const d = new Date(dates[i]);
-    d.setHours(0, 0, 0, 0);
-
-    if (d.getTime() === today.getTime()) {
-      streak++;
-      today.setDate(today.getDate() - 1); // go one day back
-    } else {
-      break;
+    for (let i = 0; i < dates.length; i++) {
+      const d = new Date(dates[i]);
+      d.setHours(0, 0, 0, 0);
+      if (d.getTime() === today.getTime()) {
+        streak++;
+        today.setDate(today.getDate() - 1);
+      } else break;
     }
-  }
 
-  return streak;
-}, [profile]);
-
+    return streak;
+  }, [profile]);
 
   return (
     <nav className="bg-black/70 backdrop-blur sticky top-0 z-50 border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-6 py-3 grid grid-cols-3 items-center">
-        {/* Left: Logo + CricWordle */}
+        {/* Left: Logo */}
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-3 group cursor-pointer">
-            {/* rectangular rounded container that sizes by height; image keeps its aspect ratio */}
             <div className="h-12 md:h-16 rounded-xl overflow-hidden shadow-md transition-transform duration-300 group-hover:scale-105 bg-white/5">
               <img
-                src="/logo3.png" /* transparent PNG/SVG provided */
+                src="/logo3.png"
                 alt="Cricket Wordle"
                 className="h-full w-auto block object-contain"
               />
@@ -81,20 +70,26 @@ const streakCount = useMemo(() => {
             </Link>
           </li>
           <li>
-            <Link to="/categories" className="hover:text-white transition">
-              Categories
-            </Link>
-          </li>
-          <li>
-            <Link to="/leaderboard" className="hover:text-white transition">
-              Leaderboard
-            </Link>
-          </li>
-          <li>
             <Link to="/about" className="hover:text-white transition">
               About
             </Link>
           </li>
+
+          {/* Only show these for non-admin users */}
+          {!user?.isAdmin && (
+            <>
+              <li>
+                <Link to="/categories" className="hover:text-white transition">
+                  Categories
+                </Link>
+              </li>
+              <li>
+                <Link to="/leaderboard" className="hover:text-white transition">
+                  Leaderboard
+                </Link>
+              </li>
+            </>
+          )}
         </ul>
 
         {/* Right: Streak + Profile + Logout */}
@@ -117,10 +112,12 @@ const streakCount = useMemo(() => {
           ) : (
             <>
               {/* 🔥 Streak */}
-              <div className="flex items-center gap-1 text-blue-400 font-semibold">
-                <FaFire className="w-5 h-5" />
-                <span>{streakCount}</span>
-              </div>
+              {!user.isAdmin && (
+                <div className="flex items-center gap-1 text-blue-400 font-semibold">
+                  <FaFire className="w-5 h-5" />
+                  <span>{streakCount}</span>
+                </div>
+              )}
 
               {/* Profile link */}
               <Link

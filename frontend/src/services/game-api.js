@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GAME_API, PROFILE_API } from "./api";
+import { GAME_API, PROFILE_API , ADMIN_API} from "./api";
 
 
 const getAuthHeader = () => {
@@ -17,6 +17,44 @@ export const fetchCategories = async () => {
   }
 };
 
+export const fetchAdminCategories = async () => {
+  try {
+    const res = await axios.get(ADMIN_API.CATEGORY, getAuthHeader());
+    return res.data; // expected { categories: [...] }
+  } catch (err) {
+    throw err.response?.data || { msg: "Network Error" };
+  }
+};
+
+
+export const deleteCategory = async (category) => {
+  try {
+    const res = await axios.delete(`${ADMIN_API.DEL_CATEGORY}/${category}`, getAuthHeader());
+    return res.data; // expected { success: true, deletedCount: n }
+  } catch (err) {
+    throw err.response?.data || { msg: "Network Error" };
+  }
+};
+
+// 3️⃣ Seed new words
+export const seedDailyWords = async (wordSets) => {
+  try {
+    const res = await axios.post(ADMIN_API.SEED, wordSets, getAuthHeader());
+    return res.data; // expected { success: true, inserted: n }
+  } catch (err) {
+    throw err.response?.data || { msg: "Network Error" };
+  }
+};
+
+export const fetchWordsByCategory = async (category) => {
+  if (!category) throw { msg: "Category required" };
+  try {
+    const res = await axios.get(`${ADMIN_API.DAILY_WORDS_LIST}/${category}/words`, getAuthHeader());
+    return res.data; // expected { category, words: [...] }
+  } catch (err) {
+    throw err.response?.data || { msg: "Network Error" };
+  }
+};
 // Init game session
 export const gameInit = async ({ category, level, date }) => {
   try {

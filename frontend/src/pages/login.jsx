@@ -12,10 +12,12 @@ const isUsername = (v) => /^[a-zA-Z0-9._-]{3,20}$/.test(v);
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
-  const { loadProfile } = useContext(GameContext); // 👈 bring in game context
+  const { loadProfile } = useContext(GameContext);
+
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+  const [role, setRole] = useState("player"); // 👈 player | admin
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -38,18 +40,28 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // step 1: login to get token
-      const data = await login({ emailOrUsername, password });
-        console.log(data);
+      const isAdmin = role === "admin";
+      // step 1: login
+      const data = await login({ emailOrUsername, password, isAdmin });
+      console.log("Login response:", data);
+
       if (data?.token) {
         localStorage.setItem("token", data.token);
+        localStorage.setItem("isAdmin", isAdmin ? "true" : "false");
 
-        // step 2: fetch profile + store in GameContext
-        const userdata=await loadProfile(data.token);
-        console.log(userdata);
+        // step 2: fetch profile
+        const userdata = await loadProfile(data.token);
+        console.log("User profile:", userdata);
+
+        // redirect
+        if (isAdmin) {
+          toast.success("Welcome Admin!");
+          navigate("/admin");
+        } else {
+          toast.success("Login successful");
+          navigate("/");
+        }
       }
-      toast.success("Login done successfully")
-      navigate("/");
     } catch (err) {
       const msg = err?.response?.data?.msg || err?.message || "Login failed";
       setError(msg);
@@ -68,6 +80,32 @@ export default function LoginPage() {
             CricWordle
           </h1>
           <p className="text-sm text-gray-400 mt-1">Login to play the daily puzzle</p>
+        </div>
+
+        {/* Role selector (same style as signup) */}
+        <div className="flex mb-4 rounded-xl overflow-hidden border border-gray-700/70 bg-white/10">
+          <button
+            type="button"
+            onClick={() => setRole("player")}
+            className={`flex-1 py-2 font-semibold ${
+              role === "player"
+                ? "bg-gray-800 text-white"
+                : "bg-transparent text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Player Login
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole("admin")}
+            className={`flex-1 py-2 font-semibold ${
+              role === "admin"
+                ? "bg-gray-800 text-white"
+                : "bg-transparent text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Admin Login
+          </button>
         </div>
 
         {/* Frosted card */}
@@ -114,9 +152,9 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 disabled:opacity-60 font-semibold shadow-lg shadow-black/40 transition-transform duration-200 hover:scale-[1.01]"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 disabled:opacity-60 font-semibold shadow-lg shadow-black/40 transition-transform duration-200 hover:scale-[1.01] mt-2"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in…" : `Sign in as ${role}`}
           </button>
 
           <div className="flex items-center justify-between mt-4 text-sm text-gray-400">

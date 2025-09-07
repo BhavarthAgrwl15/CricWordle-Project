@@ -1,24 +1,22 @@
 // src/contexts/auth-provider.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { AuthContext } from "./auth-context";
-import { loginUser, signupUser, fetchProfile } from "../services/user"; // fetchProfile is optional
+import { loginUser, signupUser, fetchProfile } from "../services/user";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [hydrated, setHydrated] = useState(false); // true after we've tried to restore from storage/token
+  const [hydrated, setHydrated] = useState(false);
 
-  // Restore user from localStorage or from token (optional)
+  // Restore user from localStorage or from token
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const raw = localStorage.getItem("user");
         if (raw) {
-          // user object found in localStorage
           if (!mounted) return;
           setUser(JSON.parse(raw));
         } else {
-          // no user in storage — try to restore from token if available and fetchProfile is implemented
           const token = localStorage.getItem("token");
           if (token && typeof fetchProfile === "function") {
             try {
@@ -28,7 +26,6 @@ export const AuthProvider = ({ children }) => {
                 localStorage.setItem("user", JSON.stringify(profile));
               }
             } catch (err) {
-              // token invalid or network error — clear stored auth
               console.warn("restore profile failed", err);
               localStorage.removeItem("token");
               localStorage.removeItem("user");
@@ -42,26 +39,35 @@ export const AuthProvider = ({ children }) => {
       }
     })();
 
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Login helper
-  const login = useCallback(async (credentials) => {
-    const data = await loginUser(credentials);
-    // server expected to return { token, user } but handle token-only responses too
+  // Helper to normalize and save user
+  const saveAuthData = (data) => {
     if (data?.token) {
       localStorage.setItem("token", data.token);
     }
     if (data?.user) {
-      setUser(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
-    } else if (data?.token && typeof fetchProfile === "function") {
-      // try to fetch user profile using token if user not returned directly
+      // ensure isAdmin is preserved
+      const userWithRole = { ...data.user, isAdmin: !!data.user.isAdmin };
+      setUser(userWithRole);
+      localStorage.setItem("user", JSON.stringify(userWithRole));
+    }
+  };
+
+  const login = useCallback(async (credentials) => {
+    const data = await loginUser(credentials);
+    saveAuthData(data);
+
+    if (!data?.user && data?.token && typeof fetchProfile === "function") {
       try {
         const profile = await fetchProfile(data.token);
         if (profile) {
-          setUser(profile);
-          localStorage.setItem("user", JSON.stringify(profile));
+          const profileWithRole = { ...profile, isAdmin: !!profile.isAdmin };
+          setUser(profileWithRole);
+          localStorage.setItem("user", JSON.stringify(profileWithRole));
         }
       } catch (err) {
         console.warn("fetchProfile after login failed", err);
@@ -70,21 +76,17 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
-  // Signup helper (same pattern)
   const signup = useCallback(async (userData) => {
     const data = await signupUser(userData);
-    if (data?.token) {
-      localStorage.setItem("token", data.token);
-    }
-    if (data?.user) {
-      setUser(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
-    } else if (data?.token && typeof fetchProfile === "function") {
+    saveAuthData(data);
+
+    if (!data?.user && data?.token && typeof fetchProfile === "function") {
       try {
         const profile = await fetchProfile(data.token);
         if (profile) {
-          setUser(profile);
-          localStorage.setItem("user", JSON.stringify(profile));
+          const profileWithRole = { ...profile, isAdmin: !!profile.isAdmin };
+          setUser(profileWithRole);
+          localStorage.setItem("user", JSON.stringify(profileWithRole));
         }
       } catch (err) {
         console.warn("fetchProfile after signup failed", err);
@@ -93,7 +95,6 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
-  // Logout helper
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem("token");
@@ -101,7 +102,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, signup, logout, hydrated }}>
+    <AuthContext.Provider
+      value={{
+        user,          // contains isAdmin
+        setUser,
+        login,
+        signup,
+        logout,
+        hydrated,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
